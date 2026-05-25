@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>API Documentation - Pengaduan Provinsi</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: #f5f5f5;
+        padding: 20px;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      .header {
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+      }
+      .card {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .endpoint {
+        background: #f8f9fa;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-radius: 8px;
+        border-left: 4px solid #2a5298;
+      }
+      .method {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: bold;
+        margin-right: 10px;
+      }
+      .method.get {
+        background: #28a745;
+        color: white;
+      }
+      .method.post {
+        background: #007bff;
+        color: white;
+      }
+      .method.put {
+        background: #ffc107;
+        color: #333;
+      }
+      .method.delete {
+        background: #dc3545;
+        color: white;
+      }
+      .path {
+        font-family: monospace;
+        font-size: 14px;
+        font-weight: 500;
+      }
+      .badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        margin-left: 10px;
+        background: #6c757d;
+        color: white;
+      }
+      .badge.auth {
+        background: #fd7e14;
+      }
+      .badge.admin {
+        background: #dc3545;
+      }
+      .badge.governor {
+        background: #1e3c72;
+      }
+      .badge.investigator {
+        background: #20c997;
+      }
+      pre {
+        background: #1a1a2e;
+        color: #e0e0e0;
+        padding: 10px;
+        border-radius: 5px;
+        overflow-x: auto;
+        font-size: 12px;
+        margin-top: 10px;
+      }
+      h3 {
+        margin: 20px 0 10px 0;
+        color: #1e3c72;
+      }
+      .role-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 10px 0;
+      }
+      .role-table th,
+      .role-table td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+      }
+      .role-table th {
+        background: #2a5298;
+        color: white;
+      }
+      footer {
+        text-align: center;
+        padding: 20px;
+        color: #666;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>📋 Pengaduan Provinsi API</h1>
+        <p>
+          Dokumentasi API untuk sistem pengaduan masyarakat tingkat provinsi
+        </p>
+        <p><strong>Base URL:</strong> <code>http://localhost:8080/api</code></p>
+      </div>
+
+      <div class="card">
+        <h2>👥 Role dalam Sistem</h2>
+        <table class="role-table">
+          <thead>
+            <tr>
+              <th>Role</th>
+              <th>Akses</th>
+              <th>Tugas</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>👤 User (Warga)</td>
+              <td>Submit & cek status</td>
+              <td>Mengadu, melihat status</td>
+            </tr>
+            <tr>
+              <td>🔍 Investigator</td>
+              <td>Cek lapangan</td>
+              <td>Investigasi kebenaran laporan</td>
+            </tr>
+            <tr>
+              <td>👨‍💼 Governor</td>
+              <td>Proses & tugaskan</td>
+              <td>Memproses pengaduan, upload bukti</td>
+            </tr>
+            <tr>
+              <td>⚙️ Admin</td>
+              <td>Kelola semua</td>
+              <td>Verifikasi & publikasi</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>🔐 Authentication</h2>
+        <div class="endpoint">
+          <span class="method post">POST</span>
+          <span class="path">/auth/register</span>
+          <span class="badge">Public</span>
+          <pre>
+curl -X POST http://localhost:8080/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"warga1","password":"123456","email":"warga@email.com","fullname":"Warga Satu","province_id":1}'</pre
+          >
+        </div>
+        <div class="endpoint">
+          <span class="method post">POST</span>
+          <span class="path">/auth/login</span>
+          <span class="badge">Public</span>
+          <pre>
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"warga1","password":"123456"}'</pre
+          >
+        </div>
+        <div class="endpoint">
+          <span class="method post">POST</span>
+          <span class="path">/auth/google</span>
+          <span class="badge">Public</span>
+          <pre>
+curl -X POST http://localhost:8080/api/auth/google \
+  -H "Content-Type: application/json" \
+  -d '{"google_id":"xxx","email":"user@gmail.com","fullname":"User Google","province_id":1}'</pre
+          >
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>📍 Wilayah (Province)</h2>
+        <div class="endpoint">
+          <span class="method get">GET</span><span class="path">/provinces</span
+          ><span class="badge">Public</span>
+          <pre>curl http://localhost:8080/api/provinces</pre>
+        </div>
+        <div class="endpoint">
+          <span class="method get">GET</span
+          ><span class="path">/provinces/{province_id}/regencies</span
+          ><span class="badge">Public</span>
+          <pre>curl http://localhost:8080/api/provinces/1/regencies</pre>
+        </div>
+        <div class="endpoint">
+          <span class="method get">GET</span
+          ><span class="path">/regencies/{regency_id}/districts</span
+          ><span class="badge">Public</span>
+          <pre>curl http://localhost:8080/api/regencies/1/districts</pre>
+        </div>
+        <div class="endpoint">
+          <span class="method get">GET</span
+          ><span class="path">/districts/{district_id}/villages</span
+          ><span class="badge">Public</span>
+          <pre>curl http://localhost:8080/api/districts/1/villages</pre>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>📝 Pengaduan (User/Public)</h2>
+        <div class="endpoint">
+          <span class="method get">GET</span
+          ><span class="path">/complaints/categories</span
+          ><span class="badge">Public</span>
+          <pre>curl http://localhost:8080/api/complaints/categories</pre>
+        </div>
+        <div class="endpoint">
+          <span class="method get">GET</span
+          ><span class="path">/complaints/status/{tracking_code}</span
+          ><span class="badge">Public</span>
+          <pre>curl http://localhost:8080/api/complaints/status/JKT001</pre>
+        </div>
+        <div class="endpoint">
+          <span class="method post">POST</span
+          ><span class="path">/complaints/submit</span
+          ><span class="badge auth">Need Auth</span>
+          <pre>
+curl -X POST http://localhost:8080/api/complaints/submit \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"province_id":1,"location_detail":"Jl. Sudirman No.123","category_id":1,"description":"Jalan rusak parah"}'</pre
+          >
+        </div>
+        <div class="endpoint">
+          <span class="method get">GET</span
+          ><span class="path">/complaints/my</span
+          ><span class="badge auth">Need Auth</span>
+          <pre>
+curl -X GET http://localhost:8080/api/complaints/my \
+  -H "Authorization: Bearer TOKEN"</pre
+          >
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>👨‍💼 Governor & Investigator</h2>
+        <div class="endpoint">
+          <span class="method get">GET</span
+          ><span class="path">/complaints/all</span
+          ><span class="badge governor">Governor/Admin/Investigator</span>
+          <pre>
+curl -X GET http://localhost:8080/api/complaints/all?status=pending_governor \
+  -H "Authorization: Bearer TOKEN"</pre
+          >
+        </div>
+        <div class="endpoint">
+          <span class="method post">POST</span
+          ><span class="path">/governor/complaints/{id}/assign</span
+          ><span class="badge governor">Governor Only</span>
+          <pre>
+curl -X POST http://localhost:8080/api/governor/complaints/1/assign \
+  -H "Authorization: Bearer TOKEN" \
+  -d '{"investigator_id":2}'</pre
+          >
+        </div>
+        <div class="endpoint">
+          <span class="method post">POST</span
+          ><span class="path">/investigator/complaints/{id}/result</span
+          ><span class="badge investigator">Investigator Only</span>
+          <pre>
+curl -X POST http://localhost:8080/api/investigator/complaints/1/result \
+  -H "Authorization: Bearer TOKEN" \
+  -d '{"result":"Laporan valid","evidence":"foto_bukti.jpg","is_valid":true}'</pre
+          >
+        </div>
+        <div class="endpoint">
+          <span class="method post">POST</span
+          ><span class="path">/governor/complaints/{id}/process-report</span
+          ><span class="badge governor">Governor Only</span>
+          <pre>
+curl -X POST http://localhost:8080/api/governor/complaints/1/process-report \
+  -H "Authorization: Bearer TOKEN" \
+  -d '{"process_notes":"Sedang dikerjakan","process_date":"2024-01-15"}'</pre
+          >
+        </div>
+        <div class="endpoint">
+          <span class="method post">POST</span
+          ><span class="path">/governor/complaints/{id}/completion-report</span
+          ><span class="badge governor">Governor Only</span>
+          <pre>
+curl -X POST http://localhost:8080/api/governor/complaints/1/completion-report \
+  -H "Authorization: Bearer TOKEN" \
+  -d '{"completion_date":"2024-01-20","cost":5000000,"work_details":"Perbaikan jalan"}'</pre
+          >
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>⚙️ Admin Only</h2>
+        <div class="endpoint">
+          <span class="method get">GET</span
+          ><span class="path">/admin/dashboard</span
+          ><span class="badge admin">Admin Only</span>
+          <pre>
+curl -X GET http://localhost:8080/api/admin/dashboard \
+  -H "Authorization: Bearer TOKEN"</pre
+          >
+        </div>
+      </div>
+
+      <footer>© 2024 Pengaduan Provinsi API | Built with Go & Gin</footer>
+    </div>
+  </body>
+</html>

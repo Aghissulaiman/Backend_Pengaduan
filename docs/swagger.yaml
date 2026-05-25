@@ -1,0 +1,495 @@
+gobasePath: /api
+definitions:
+  complaint.AssignInvestigatorRequest:
+    properties:
+      investigator_id:
+        type: integer
+    required:
+    - investigator_id
+    type: object
+  complaint.CompletionReportRequest:
+    properties:
+      completion_date:
+        type: string
+      cost:
+        type: number
+      cost_details:
+        type: string
+      final_photos:
+        type: string
+      work_details:
+        type: string
+    required:
+    - completion_date
+    type: object
+  complaint.InvestigationResultRequest:
+    properties:
+      evidence:
+        type: string
+      is_valid:
+        type: boolean
+      result:
+        type: string
+    required:
+    - result
+    type: object
+  complaint.ProcessReportRequest:
+    properties:
+      process_date:
+        type: string
+      process_notes:
+        type: string
+      process_photos:
+        type: string
+    type: object
+  complaint.SubmitComplaintRequest:
+    properties:
+      category_id:
+        type: integer
+      description:
+        minLength: 10
+        type: string
+      district_id:
+        type: integer
+      location_detail:
+        type: string
+      photo:
+        type: string
+      province_id:
+        type: integer
+      regency_id:
+        type: integer
+      village_id:
+        type: integer
+    required:
+    - category_id
+    - description
+    - location_detail
+    - province_id
+    type: object
+  dto.Response:
+    properties:
+      data: {}
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  province.ProvinceData:
+    properties:
+      id:
+        type: integer
+      value:
+        type: string
+    type: object
+  province.RegencyData:
+    properties:
+      id:
+        type: integer
+      province_id:
+        type: integer
+      type:
+        type: string
+      value:
+        type: string
+    type: object
+  province.SyncProvincesRequest:
+    properties:
+      provinces:
+        items:
+          $ref: '#/definitions/province.ProvinceData'
+        type: array
+    type: object
+  province.SyncRegenciesRequest:
+    properties:
+      regencies:
+        items:
+          $ref: '#/definitions/province.RegencyData'
+        type: array
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: API untuk sistem pengaduan masyarakat tingkat provinsi
+  title: Pengaduan Provinsi API
+  version: "1.0"
+paths:
+  /api/admin/dashboard:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.Response'
+      security:
+      - BearerAuth: []
+      summary: Get dashboard statistics (admin only)
+      tags:
+      - Admin
+  /api/admin/provinces/sync:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Provinces data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/province.SyncProvincesRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.Response'
+      security:
+      - BearerAuth: []
+      summary: Sync provinces from external API (admin only)
+      tags:
+      - Admin
+  /api/admin/regencies/sync:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Regencies data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/province.SyncRegenciesRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.Response'
+      security:
+      - BearerAuth: []
+      summary: Sync regencies from external API (admin only)
+      tags:
+      - Admin
+  /api/complaints/{id}:
+    get:
+      parameters:
+      - description: Complaint ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.Response'
+      security:
+      - BearerAuth: []
+      summary: Get complaint detail
+      tags:
+      - Complaint
+  /api/complaints/all:
+    get:
+      parameters:
+      - description: Filter by status
+        in: query
+        name: status
+        type: string
+      - description: Filter by province (admin only)
+        in: query
+        name: province_id
+        type: integer
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Items per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all complaints (governor/admin/investigator)
+      tags:
+      - Complaint
+  /api/complaints/categories:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.Response'
+      summary: Get all complaint categories
+      tags:
+      - Complaint
+  /api/complaints/my:
+    get:
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Items per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.Response'
+      security:
+      - BearerAuth: []
+      summary: Get my complaints
+      tags:
+      - Complaint
+  /api/complaints/status/{tracking_code}:
+    get:
+      parameters:
+      - description: Tracking code
+        in: path
+        name: tracking_code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.Response'
+      summary: Check complaint status by tracking code
+      tags:
+      - Complaint
+  /api/complaints/submit:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Complaint data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/complaint.SubmitComplaintRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.Response'
+      security:
+      - BearerAuth: []
+      summary: Submit a new complaint
+      tags:
+      - Complaint
+  /api/districts/{district_id}/villages:
+    get:
+      parameters:
+      - description: District ID
+        in: path
+        name: district_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.Response'
+      summary: Get villages by district ID
+      tags:
+      - Province
+  /api/governor/complaints/{id}/assign:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Complaint ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Investigator ID
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/complaint.AssignInvestigatorRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.Response'
+      security:
+      - BearerAuth: []
+      summary: Assign investigator to complaint (governor only)
+      tags:
+      - Complaint
+  /api/governor/complaints/{id}/completion-report:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Complaint ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Completion report
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/complaint.CompletionReportRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.Response'
+      security:
+      - BearerAuth: []
+      summary: Submit completion report to admin (governor only)
+      tags:
+      - Complaint
+  /api/governor/complaints/{id}/process-report:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Complaint ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Process report
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/complaint.ProcessReportRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.Response'
+      security:
+      - BearerAuth: []
+      summary: Submit process report to admin (governor only)
+      tags:
+      - Complaint
+  /api/investigator/complaints/{id}/result:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Complaint ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Investigation result
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/complaint.InvestigationResultRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.Response'
+      security:
+      - BearerAuth: []
+      summary: Submit investigation result (investigator only)
+      tags:
+      - Complaint
+  /api/provinces:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.Response'
+      summary: Get all provinces
+      tags:
+      - Province
+  /api/provinces/{province_id}/regencies:
+    get:
+      parameters:
+      - description: Province ID
+        in: path
+        name: province_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.Response'
+      summary: Get regencies by province ID
+      tags:
+      - Province
+  /api/regencies/{regency_id}/districts:
+    get:
+      parameters:
+      - description: Regency ID
+        in: path
+        name: regency_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.Response'
+      summary: Get districts by regency ID
+      tags:
+      - Province
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
