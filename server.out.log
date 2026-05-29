@@ -1,0 +1,43 @@
+[GIN-debug] [WARNING] Creating an Engine instance with the Logger and Recovery middleware already attached.
+
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+[GIN-debug] GET    /uploads/*filepath        --> github.com/gin-gonic/gin.(*RouterGroup).createStaticHandler.func1 (4 handlers)
+[GIN-debug] HEAD   /uploads/*filepath        --> github.com/gin-gonic/gin.(*RouterGroup).createStaticHandler.func1 (4 handlers)
+[GIN-debug] GET    /swagger/*any             --> github.com/swaggo/gin-swagger.CustomWrapHandler.func1 (4 handlers)
+[GIN-debug] GET    /health                   --> main.main.func1 (4 handlers)
+[GIN-debug] POST   /api/auth/register        --> pengaduan_be2/internal/auth.(*AuthHandler).Register-fm (4 handlers)
+[GIN-debug] POST   /api/auth/login           --> pengaduan_be2/internal/auth.(*AuthHandler).Login-fm (4 handlers)
+[GIN-debug] POST   /api/auth/google          --> pengaduan_be2/internal/auth.(*AuthHandler).GoogleLogin-fm (4 handlers)
+[GIN-debug] GET    /api/users/profile        --> pengaduan_be2/internal/auth.(*AuthHandler).GetProfile-fm (5 handlers)
+[GIN-debug] PUT    /api/users/profile        --> pengaduan_be2/internal/auth.(*AuthHandler).UpdateProfile-fm (5 handlers)
+[GIN-debug] GET    /api/complaints/categories --> pengaduan_be2/internal/complaint.(*ComplaintHandler).GetCategories-fm (4 handlers)
+[GIN-debug] GET    /api/complaints/status/:tracking_code --> pengaduan_be2/internal/complaint.(*ComplaintHandler).CheckStatus-fm (4 handlers)
+[GIN-debug] POST   /api/complaints/submit    --> pengaduan_be2/internal/complaint.(*ComplaintHandler).SubmitComplaint-fm (5 handlers)
+[GIN-debug] GET    /api/complaints/my        --> pengaduan_be2/internal/complaint.(*ComplaintHandler).GetMyComplaints-fm (5 handlers)
+[GIN-debug] GET    /api/complaints/:id       --> pengaduan_be2/internal/complaint.(*ComplaintHandler).GetComplaintDetail-fm (5 handlers)
+[GIN-debug] GET    /api/complaints/all       --> pengaduan_be2/internal/complaint.(*ComplaintHandler).GetAllComplaints-fm (6 handlers)
+[GIN-debug] POST   /api/governor/complaints/:id/assign --> pengaduan_be2/internal/complaint.(*ComplaintHandler).AssignInvestigator-fm (6 handlers)
+[GIN-debug] POST   /api/governor/complaints/:id/process-report --> pengaduan_be2/internal/complaint.(*ComplaintHandler).SubmitProcessReport-fm (6 handlers)
+[GIN-debug] POST   /api/governor/complaints/:id/completion-report --> pengaduan_be2/internal/complaint.(*ComplaintHandler).SubmitCompletionReport-fm (6 handlers)
+[GIN-debug] POST   /api/investigator/complaints/:id/result --> pengaduan_be2/internal/complaint.(*ComplaintHandler).SubmitInvestigationResult-fm (6 handlers)
+[GIN-debug] GET    /api/admin/dashboard      --> pengaduan_be2/internal/complaint.(*ComplaintHandler).GetDashboardStats-fm (6 handlers)
+[GIN-debug] GET    /api/provinces            --> pengaduan_be2/internal/province.(*ProvinceHandler).GetAllProvinces-fm (4 handlers)
+[GIN-debug] GET    /api/provinces/:province_id/regencies --> pengaduan_be2/internal/province.(*ProvinceHandler).GetRegencies-fm (4 handlers)
+[GIN-debug] GET    /api/regencies/:regency_id/districts --> pengaduan_be2/internal/province.(*ProvinceHandler).GetDistricts-fm (4 handlers)
+[GIN-debug] GET    /api/districts/:district_id/villages --> pengaduan_be2/internal/province.(*ProvinceHandler).GetVillages-fm (4 handlers)
+[GIN-debug] POST   /api/admin/provinces/sync --> pengaduan_be2/internal/province.(*ProvinceHandler).SyncProvinces-fm (6 handlers)
+[GIN-debug] POST   /api/admin/regencies/sync --> pengaduan_be2/internal/province.(*ProvinceHandler).SyncRegencies-fm (6 handlers)
+[GIN-debug] [WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.
+Please check https://github.com/gin-gonic/gin/blob/master/docs/doc.md#dont-trust-all-proxies for details.
+[GIN-debug] Listening and serving HTTP on :8080
+[GIN] 2026/05/25 - 11:35:42 | 200 |  12.55ms |             ::1 | GET      "/health"
+[GIN] 2026/05/25 - 11:35:59 | 200 |   4.64ms |             ::1 | GET      "/health"
+[GIN] 2026/05/25 - 11:35:59 | 200 |   4.49ms |             ::1 | GET      "/health"
+Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3Nzk3NjcwMDgsInByb3ZpbmNlX2lkIjo1MSwicm9sZSI6InVzZXIiLCJ1c2VyX2lkIjo1LCJ1c2VybmFtZSI6ImFnaGlzMyJ9.jl6qyDl1raZ9QqdZXgbKcR9bA-kfGspd4DwYRs05Ecs
+Received request: {ProvinceID:36 RegencyID:<nil> DistrictID:<nil> VillageID:<nil> LocationDetail:Jl. Test No.123 CategoryID:1 Description:Test pengaduan minimal 10 karakter Photo:<nil>}
+UserID from token: 5
+Service error: gagal menyimpan pengaduan
+[GIN] 2026/05/25 - 11:41:11 | 400 | 450.14ms |       127.0.0.1 | POST     "/api/complaints/submit"

@@ -3,8 +3,7 @@ package complaint
 import (
     "database/sql"
     "errors"
-    // "fmt"
-    // "time"
+    "fmt"
     "pengaduan_be2/pkg/db"
     "pengaduan_be2/pkg/utils"
 )
@@ -46,6 +45,18 @@ func (s *ComplaintService) SubmitComplaint(userID int, req *SubmitComplaintReque
     // Generate tracking code
     trackingCode := utils.GenerateTrackingCode()
 
+    // Debug log
+    fmt.Printf("=== SUBMIT COMPLAINT ===\n")
+    fmt.Printf("UserID: %d\n", userID)
+    fmt.Printf("ProvinceApiID: %d\n", req.ProvinceID)
+    fmt.Printf("RegencyID: %v\n", req.RegencyID)
+    fmt.Printf("DistrictID: %v\n", req.DistrictID)
+    fmt.Printf("VillageID: %v\n", req.VillageID)
+    fmt.Printf("LocationDetail: %s\n", req.LocationDetail)
+    fmt.Printf("CategoryID: %d\n", req.CategoryID)
+    fmt.Printf("Description: %s\n", req.Description)
+    fmt.Printf("Photo: %v\n", req.Photo)
+
     result, err := db.DB.Exec(`
         INSERT INTO complaints (
             tracking_code, user_id, province_api_id, regency_id, district_id, village_id,
@@ -56,10 +67,13 @@ func (s *ComplaintService) SubmitComplaint(userID int, req *SubmitComplaintReque
     )
 
     if err != nil {
-        return nil, errors.New("gagal menyimpan pengaduan")
+        fmt.Printf("SQL Error: %v\n", err)
+        return nil, errors.New("gagal menyimpan pengaduan: " + err.Error())
     }
 
     id, _ := result.LastInsertId()
+
+    fmt.Printf("Complaint created with ID: %d, TrackingCode: %s\n", id, trackingCode)
 
     // Insert notifikasi ke gubernur provinsi terkait
     go s.notifyGovernor(req.ProvinceID, int(id), trackingCode)

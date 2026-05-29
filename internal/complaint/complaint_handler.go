@@ -1,19 +1,22 @@
 package complaint
 
 import (
-    "fmt"
-    "net/http"
-    "strconv"
-    "pengaduan_be2/internal/dto"
-    "github.com/gin-gonic/gin"
+	"bytes"
+	"fmt"
+	"io"
+	"net/http"
+	"strconv"
+
+	"github.com/gin-gonic/gin"
+	"pengaduan_be2/internal/dto"
 )
 
 type ComplaintHandler struct {
-    service *ComplaintService
+	service *ComplaintService
 }
 
 func NewComplaintHandler() *ComplaintHandler {
-    return &ComplaintHandler{service: NewComplaintService()}
+	return &ComplaintHandler{service: NewComplaintService()}
 }
 
 // GetCategories godoc
@@ -23,19 +26,19 @@ func NewComplaintHandler() *ComplaintHandler {
 // @Success 200 {object} dto.Response
 // @Router /api/complaints/categories [get]
 func (h *ComplaintHandler) GetCategories(c *gin.Context) {
-    categories, err := h.service.GetCategories()
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, dto.Response{
-            Success: false,
-            Message: "Gagal mengambil data kategori",
-        })
-        return
-    }
+	categories, err := h.service.GetCategories()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, dto.Response{
+			Success: false,
+			Message: "Gagal mengambil data kategori",
+		})
+		return
+	}
 
-    c.JSON(http.StatusOK, dto.Response{
-        Success: true,
-        Data:    categories,
-    })
+	c.JSON(http.StatusOK, dto.Response{
+		Success: true,
+		Data:    categories,
+	})
 }
 
 // SubmitComplaint godoc
@@ -49,61 +52,72 @@ func (h *ComplaintHandler) GetCategories(c *gin.Context) {
 // @Failure 400 {object} dto.Response
 // @Router /api/complaints/submit [post]
 func (h *ComplaintHandler) SubmitComplaint(c *gin.Context) {
-    var req SubmitComplaintRequest
-    
-    // Log request body
-    body, _ := c.GetRawData()
-    fmt.Printf("Raw request body: %s\n", string(body))
-    
-    if err := c.ShouldBindJSON(&req); err != nil {
-        fmt.Printf("Binding error: %v\n", err)
-        c.JSON(http.StatusBadRequest, dto.Response{
-            Success: false,
-            Message: err.Error(),
-        })
-        return
-    }
+	// Baca raw body
+	bodyBytes, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.Response{
+			Success: false,
+			Message: "Gagal membaca request body: " + err.Error(),
+		})
+		return
+	}
+	
+	// Restore body
+	c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+	
+	fmt.Printf("Raw Body: %s\n", string(bodyBytes))
 
-    // Log request yang diterima
-    fmt.Printf("Received request: %+v\n", req)
+	var req SubmitComplaintRequest
+	
+	// Binding JSON
+	if err := c.ShouldBindJSON(&req); err != nil {
+		fmt.Printf("Binding Error: %v\n", err)
+		c.JSON(http.StatusBadRequest, dto.Response{
+			Success: false,
+			Message: "Format JSON tidak valid: " + err.Error(),
+		})
+		return
+	}
 
-    userIDRaw, exists := c.Get("user_id")
-    if !exists {
-        fmt.Printf("User ID not found in context\n")
-        c.JSON(http.StatusUnauthorized, dto.Response{
-            Success: false,
-            Message: "User tidak terautentikasi",
-        })
-        return
-    }
-    
-    userID, ok := userIDRaw.(int)
-    if !ok {
-        fmt.Printf("User ID invalid type: %T\n", userIDRaw)
-        c.JSON(http.StatusUnauthorized, dto.Response{
-            Success: false,
-            Message: "User ID tidak valid",
-        })
-        return
-    }
-    
-    fmt.Printf("UserID from token: %d\n", userID)
+	fmt.Printf("Parsed Request: ProvinceApiID=%d, Location=%s, CategoryID=%d, Description=%s\n", 
+		req.ProvinceID, req.LocationDetail, req.CategoryID, req.Description)
 
-    resp, err := h.service.SubmitComplaint(userID, &req)
-    if err != nil {
-        fmt.Printf("Service error: %v\n", err)
-        c.JSON(http.StatusBadRequest, dto.Response{
-            Success: false,
-            Message: err.Error(),
-        })
-        return
-    }
+	// Ambil user_id dari context (dari middleware)
+	userIDVal, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, dto.Response{
+			Success: false,
+			Message: "User tidak terautentikasi",
+		})
+		return
+	}
 
-    c.JSON(http.StatusCreated, dto.Response{
-        Success: true,
-        Message: "Pengaduan berhasil dikirim",
-        Data:    resp,
-    })
+	userID, ok := userIDVal.(int)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, dto.Response{
+			Success: false,
+			Message: "User ID tidak valid",
+		})
+		return
+	}
+
+	fmt.Printf("UserID: %d\n", userID)
+
+	resp, err := h.service.SubmitComplaint(userID, &req)
+	if err != nil {
+		fmt.Printf("Service Error: %v\n", err)
+		c.JSON(http.StatusBadRequest, dto.Response{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, dto.Response{
+		Success: true,
+		Message: "Pengaduan berhasil dikirim",
+		Data:    resp,
+	})
 }
 
 // GetMyComplaints godoc
@@ -116,42 +130,41 @@ func (h *ComplaintHandler) SubmitComplaint(c *gin.Context) {
 // @Success 200 {object} dto.Response
 // @Router /api/complaints/my [get]
 func (h *ComplaintHandler) GetMyComplaints(c *gin.Context) {
-    userIDRaw, exists := c.Get("user_id")
-    if !exists {
-        c.JSON(http.StatusUnauthorized, dto.Response{
-            Success: false,
-            Message: "User tidak terautentikasi",
-        })
-        return
-    }
-    
-    userID, ok := userIDRaw.(int)
-    if !ok {
-        c.JSON(http.StatusUnauthorized, dto.Response{
-            Success: false,
-            Message: "User ID tidak valid",
-        })
-        return
-    }
-    
-    page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-    limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	userIDVal, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, dto.Response{
+			Success: false,
+			Message: "User tidak terautentikasi",
+		})
+		return
+	}
 
-    complaints, total, err := h.service.GetUserComplaints(userID, page, limit)
-    if err != nil {
-        fmt.Printf("GetUserComplaints error: %v\n", err)
-        c.JSON(http.StatusInternalServerError, dto.Response{
-            Success: false,
-            Message: "Gagal mengambil data",
-        })
-        return
-    }
+	userID, ok := userIDVal.(int)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, dto.Response{
+			Success: false,
+			Message: "User ID tidak valid",
+		})
+		return
+	}
 
-    c.JSON(http.StatusOK, gin.H{
-        "success":    true,
-        "data":       complaints,
-        "pagination": dto.NewPagination(page, limit, total),
-    })
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+
+	complaints, total, err := h.service.GetUserComplaints(userID, page, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, dto.Response{
+			Success: false,
+			Message: "Gagal mengambil data",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":    true,
+		"data":       complaints,
+		"pagination": dto.NewPagination(page, limit, total),
+	})
 }
 
 // CheckStatus godoc
@@ -163,23 +176,21 @@ func (h *ComplaintHandler) GetMyComplaints(c *gin.Context) {
 // @Failure 404 {object} dto.Response
 // @Router /api/complaints/status/{tracking_code} [get]
 func (h *ComplaintHandler) CheckStatus(c *gin.Context) {
-    trackingCode := c.Param("tracking_code")
-    complaint, err := h.service.GetComplaintByTrackingCode(trackingCode)
-    if err != nil {
-        c.JSON(http.StatusNotFound, dto.Response{
-            Success: false,
-            Message: err.Error(),
-        })
-        return
-    }
+	trackingCode := c.Param("tracking_code")
+	complaint, err := h.service.GetComplaintByTrackingCode(trackingCode)
+	if err != nil {
+		c.JSON(http.StatusNotFound, dto.Response{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
 
-    c.JSON(http.StatusOK, dto.Response{
-        Success: true,
-        Data:    complaint,
-    })
+	c.JSON(http.StatusOK, dto.Response{
+		Success: true,
+		Data:    complaint,
+	})
 }
-
-// ============ GOVERNOR ENDPOINTS ============
 
 // GetAllComplaints godoc
 // @Summary Get all complaints (governor/admin/investigator)
@@ -190,38 +201,36 @@ func (h *ComplaintHandler) CheckStatus(c *gin.Context) {
 // @Param province_api_id query int false "Filter by province (admin only)"
 // @Param page query int false "Page number"
 // @Param limit query int false "Items per page"
-// @Success 200 {object} dto.Response
 // @Router /api/complaints/all [get]
 func (h *ComplaintHandler) GetAllComplaints(c *gin.Context) {
-    role, _ := c.Get("role")
-    userID, _ := c.Get("user_id")
-    provinceID, _ := c.Get("province_api_id")
+	role, _ := c.Get("role")
+	userID, _ := c.Get("user_id")
+	provinceID, _ := c.Get("province_api_id")
 
-    var query GetComplaintsQuery
-    query.Status = c.Query("status")
-    if provinceApiID := c.Query("province_api_id"); provinceApiID != "" {
-        query.ProvinceID, _ = strconv.Atoi(provinceApiID)
-    }
-    query.Page, _ = strconv.Atoi(c.DefaultQuery("page", "1"))
-    query.Limit, _ = strconv.Atoi(c.DefaultQuery("limit", "10"))
+	var query GetComplaintsQuery
+	query.Status = c.Query("status")
+	if provinceApiID := c.Query("province_api_id"); provinceApiID != "" {
+		query.ProvinceID, _ = strconv.Atoi(provinceApiID)
+	}
+	query.Page, _ = strconv.Atoi(c.DefaultQuery("page", "1"))
+	query.Limit, _ = strconv.Atoi(c.DefaultQuery("limit", "10"))
 
-    complaints, total, err := h.service.GetAllComplaints(
-        role.(string), userID.(int), provinceID.(int), &query,
-    )
-    if err != nil {
-        fmt.Printf("GetAllComplaints error: %v\n", err)
-        c.JSON(http.StatusInternalServerError, dto.Response{
-            Success: false,
-            Message: "Gagal mengambil data",
-        })
-        return
-    }
+	complaints, total, err := h.service.GetAllComplaints(
+		role.(string), userID.(int), provinceID.(int), &query,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, dto.Response{
+			Success: false,
+			Message: "Gagal mengambil data",
+		})
+		return
+	}
 
-    c.JSON(http.StatusOK, gin.H{
-        "success":    true,
-        "data":       complaints,
-        "pagination": dto.NewPagination(query.Page, query.Limit, total),
-    })
+	c.JSON(http.StatusOK, gin.H{
+		"success":    true,
+		"data":       complaints,
+		"pagination": dto.NewPagination(query.Page, query.Limit, total),
+	})
 }
 
 // GetComplaintDetail godoc
@@ -233,28 +242,28 @@ func (h *ComplaintHandler) GetAllComplaints(c *gin.Context) {
 // @Success 200 {object} dto.Response
 // @Router /api/complaints/{id} [get]
 func (h *ComplaintHandler) GetComplaintDetail(c *gin.Context) {
-    id, err := strconv.Atoi(c.Param("id"))
-    if err != nil {
-        c.JSON(http.StatusBadRequest, dto.Response{
-            Success: false,
-            Message: "ID tidak valid",
-        })
-        return
-    }
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.Response{
+			Success: false,
+			Message: "ID tidak valid",
+		})
+		return
+	}
 
-    complaint, err := h.service.GetComplaintByID(id)
-    if err != nil {
-        c.JSON(http.StatusNotFound, dto.Response{
-            Success: false,
-            Message: err.Error(),
-        })
-        return
-    }
+	complaint, err := h.service.GetComplaintByID(id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, dto.Response{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
 
-    c.JSON(http.StatusOK, dto.Response{
-        Success: true,
-        Data:    complaint,
-    })
+	c.JSON(http.StatusOK, dto.Response{
+		Success: true,
+		Data:    complaint,
+	})
 }
 
 // AssignInvestigator godoc
@@ -268,37 +277,37 @@ func (h *ComplaintHandler) GetComplaintDetail(c *gin.Context) {
 // @Success 200 {object} dto.Response
 // @Router /api/governor/complaints/{id}/assign [post]
 func (h *ComplaintHandler) AssignInvestigator(c *gin.Context) {
-    id, err := strconv.Atoi(c.Param("id"))
-    if err != nil {
-        c.JSON(http.StatusBadRequest, dto.Response{
-            Success: false,
-            Message: "ID tidak valid",
-        })
-        return
-    }
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.Response{
+			Success: false,
+			Message: "ID tidak valid",
+		})
+		return
+	}
 
-    var req AssignInvestigatorRequest
-    if err := c.ShouldBindJSON(&req); err != nil {
-        c.JSON(http.StatusBadRequest, dto.Response{
-            Success: false,
-            Message: err.Error(),
-        })
-        return
-    }
+	var req AssignInvestigatorRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.Response{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
 
-    governorID, _ := c.Get("user_id")
-    if err := h.service.AssignInvestigator(id, req.InvestigatorID, governorID.(int)); err != nil {
-        c.JSON(http.StatusBadRequest, dto.Response{
-            Success: false,
-            Message: err.Error(),
-        })
-        return
-    }
+	governorID, _ := c.Get("user_id")
+	if err := h.service.AssignInvestigator(id, req.InvestigatorID, governorID.(int)); err != nil {
+		c.JSON(http.StatusBadRequest, dto.Response{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
 
-    c.JSON(http.StatusOK, dto.Response{
-        Success: true,
-        Message: "Investigasi berhasil ditugaskan",
-    })
+	c.JSON(http.StatusOK, dto.Response{
+		Success: true,
+		Message: "Investigasi berhasil ditugaskan",
+	})
 }
 
 // SubmitInvestigationResult godoc
@@ -312,37 +321,37 @@ func (h *ComplaintHandler) AssignInvestigator(c *gin.Context) {
 // @Success 200 {object} dto.Response
 // @Router /api/investigator/complaints/{id}/result [post]
 func (h *ComplaintHandler) SubmitInvestigationResult(c *gin.Context) {
-    id, err := strconv.Atoi(c.Param("id"))
-    if err != nil {
-        c.JSON(http.StatusBadRequest, dto.Response{
-            Success: false,
-            Message: "ID tidak valid",
-        })
-        return
-    }
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.Response{
+			Success: false,
+			Message: "ID tidak valid",
+		})
+		return
+	}
 
-    var req InvestigationResultRequest
-    if err := c.ShouldBindJSON(&req); err != nil {
-        c.JSON(http.StatusBadRequest, dto.Response{
-            Success: false,
-            Message: err.Error(),
-        })
-        return
-    }
+	var req InvestigationResultRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.Response{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
 
-    investigatorID, _ := c.Get("user_id")
-    if err := h.service.SubmitInvestigationResult(id, req.Result, *req.Evidence, req.IsValid, investigatorID.(int)); err != nil {
-        c.JSON(http.StatusBadRequest, dto.Response{
-            Success: false,
-            Message: err.Error(),
-        })
-        return
-    }
+	investigatorID, _ := c.Get("user_id")
+	if err := h.service.SubmitInvestigationResult(id, req.Result, *req.Evidence, req.IsValid, investigatorID.(int)); err != nil {
+		c.JSON(http.StatusBadRequest, dto.Response{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
 
-    c.JSON(http.StatusOK, dto.Response{
-        Success: true,
-        Message: "Hasil investigasi berhasil dikirim",
-    })
+	c.JSON(http.StatusOK, dto.Response{
+		Success: true,
+		Message: "Hasil investigasi berhasil dikirim",
+	})
 }
 
 // SubmitProcessReport godoc
@@ -356,37 +365,37 @@ func (h *ComplaintHandler) SubmitInvestigationResult(c *gin.Context) {
 // @Success 200 {object} dto.Response
 // @Router /api/governor/complaints/{id}/process-report [post]
 func (h *ComplaintHandler) SubmitProcessReport(c *gin.Context) {
-    id, err := strconv.Atoi(c.Param("id"))
-    if err != nil {
-        c.JSON(http.StatusBadRequest, dto.Response{
-            Success: false,
-            Message: "ID tidak valid",
-        })
-        return
-    }
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.Response{
+			Success: false,
+			Message: "ID tidak valid",
+		})
+		return
+	}
 
-    var req ProcessReportRequest
-    if err := c.ShouldBindJSON(&req); err != nil {
-        c.JSON(http.StatusBadRequest, dto.Response{
-            Success: false,
-            Message: err.Error(),
-        })
-        return
-    }
+	var req ProcessReportRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.Response{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
 
-    governorID, _ := c.Get("user_id")
-    if err := h.service.SubmitProcessReport(id, governorID.(int), &req); err != nil {
-        c.JSON(http.StatusBadRequest, dto.Response{
-            Success: false,
-            Message: err.Error(),
-        })
-        return
-    }
+	governorID, _ := c.Get("user_id")
+	if err := h.service.SubmitProcessReport(id, governorID.(int), &req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.Response{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
 
-    c.JSON(http.StatusOK, dto.Response{
-        Success: true,
-        Message: "Laporan proses berhasil dikirim ke admin",
-    })
+	c.JSON(http.StatusOK, dto.Response{
+		Success: true,
+		Message: "Laporan proses berhasil dikirim ke admin",
+	})
 }
 
 // SubmitCompletionReport godoc
@@ -400,37 +409,37 @@ func (h *ComplaintHandler) SubmitProcessReport(c *gin.Context) {
 // @Success 200 {object} dto.Response
 // @Router /api/governor/complaints/{id}/completion-report [post]
 func (h *ComplaintHandler) SubmitCompletionReport(c *gin.Context) {
-    id, err := strconv.Atoi(c.Param("id"))
-    if err != nil {
-        c.JSON(http.StatusBadRequest, dto.Response{
-            Success: false,
-            Message: "ID tidak valid",
-        })
-        return
-    }
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.Response{
+			Success: false,
+			Message: "ID tidak valid",
+		})
+		return
+	}
 
-    var req CompletionReportRequest
-    if err := c.ShouldBindJSON(&req); err != nil {
-        c.JSON(http.StatusBadRequest, dto.Response{
-            Success: false,
-            Message: err.Error(),
-        })
-        return
-    }
+	var req CompletionReportRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.Response{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
 
-    governorID, _ := c.Get("user_id")
-    if err := h.service.SubmitCompletionReport(id, governorID.(int), &req); err != nil {
-        c.JSON(http.StatusBadRequest, dto.Response{
-            Success: false,
-            Message: err.Error(),
-        })
-        return
-    }
+	governorID, _ := c.Get("user_id")
+	if err := h.service.SubmitCompletionReport(id, governorID.(int), &req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.Response{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
 
-    c.JSON(http.StatusOK, dto.Response{
-        Success: true,
-        Message: "Laporan akhir berhasil dikirim ke admin",
-    })
+	c.JSON(http.StatusOK, dto.Response{
+		Success: true,
+		Message: "Laporan akhir berhasil dikirim ke admin",
+	})
 }
 
 // GetDashboardStats godoc
@@ -441,18 +450,17 @@ func (h *ComplaintHandler) SubmitCompletionReport(c *gin.Context) {
 // @Success 200 {object} dto.Response
 // @Router /api/admin/dashboard [get]
 func (h *ComplaintHandler) GetDashboardStats(c *gin.Context) {
-    stats, err := h.service.GetDashboardStats()
-    if err != nil {
-        fmt.Printf("GetDashboardStats error: %v\n", err)
-        c.JSON(http.StatusInternalServerError, dto.Response{
-            Success: false,
-            Message: "Gagal mengambil data statistik",
-        })
-        return
-    }
+	stats, err := h.service.GetDashboardStats()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, dto.Response{
+			Success: false,
+			Message: "Gagal mengambil data statistik",
+		})
+		return
+	}
 
-    c.JSON(http.StatusOK, dto.Response{
-        Success: true,
-        Data:    stats,
-    })
+	c.JSON(http.StatusOK, dto.Response{
+		Success: true,
+		Data:    stats,
+	})
 }
