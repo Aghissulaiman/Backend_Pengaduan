@@ -180,7 +180,7 @@
           <pre>
 curl -X POST http://localhost:8080/api/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"username":"warga1","password":"123456","email":"warga@email.com","fullname":"Warga Satu","province_id":1}'</pre
+  -d '{"username":"warga1","password":"123456","email":"warga@email.com","fullname":"Warga Satu","province_api_id":1}'</pre
           >
         </div>
         <div class="endpoint">
@@ -200,7 +200,7 @@ curl -X POST http://localhost:8080/api/auth/login \
           <pre>
 curl -X POST http://localhost:8080/api/auth/google \
   -H "Content-Type: application/json" \
-  -d '{"google_id":"xxx","email":"user@gmail.com","fullname":"User Google","province_id":1}'</pre
+  -d '{"google_id":"xxx","email":"user@gmail.com","fullname":"User Google","province_api_id":1}'</pre
           >
         </div>
       </div>
@@ -214,7 +214,7 @@ curl -X POST http://localhost:8080/api/auth/google \
         </div>
         <div class="endpoint">
           <span class="method get">GET</span
-          ><span class="path">/provinces/{province_id}/regencies</span
+          ><span class="path">/provinces/{province_api_id}/regencies</span
           ><span class="badge">Public</span>
           <pre>curl http://localhost:8080/api/provinces/1/regencies</pre>
         </div>
@@ -254,7 +254,7 @@ curl -X POST http://localhost:8080/api/auth/google \
 curl -X POST http://localhost:8080/api/complaints/submit \
   -H "Authorization: Bearer TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"province_id":1,"location_detail":"Jl. Sudirman No.123","category_id":1,"description":"Jalan rusak parah"}'</pre
+  -d '{"province_api_id":1,"location_detail":"Jl. Sudirman No.123","category_id":1,"description":"Jalan rusak parah"}'</pre
           >
         </div>
         <div class="endpoint">

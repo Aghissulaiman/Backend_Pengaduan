@@ -14,7 +14,7 @@ type Province struct {
 type Regency struct {
     ID           int     `json:"id"`
     ApiID        int     `json:"api_id"`
-    ProvinceID   int     `json:"province_id"`
+    ProvinceID   int     `json:"province_api_id"`
     ProvinceName string  `json:"province_name"`
     Name         string  `json:"name"`
     Type         string  `json:"type"`

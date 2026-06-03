@@ -8,7 +8,7 @@ type ProvinceResponse struct {
 
 type RegencyResponse struct {
     ID           int    `json:"id"`
-    ProvinceID   int    `json:"province_id"`
+    ProvinceID   int    `json:"province_api_id"`
     ProvinceName string `json:"province_name"`
     Name         string `json:"name"`
     Type         string `json:"type"`
@@ -42,7 +42,7 @@ type SyncRegenciesRequest struct {
 
 type RegencyData struct {
     ID         int    `json:"id"`
-    ProvinceID int    `json:"province_id"`
+    ProvinceID int    `json:"province_api_id"`
     Value      string `json:"value"`
     Type       string `json:"type"`
 }

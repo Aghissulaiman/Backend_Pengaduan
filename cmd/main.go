@@ -5,6 +5,7 @@ import (
     "os"
     "pengaduan_be2/internal/auth"
     "pengaduan_be2/internal/complaint"
+    "pengaduan_be2/internal/feed" // 🔥 TAMBAHKAN IMPORT FEED
     "pengaduan_be2/internal/middleware"
     "pengaduan_be2/internal/province"
     "pengaduan_be2/pkg/db"
@@ -45,6 +46,7 @@ func main() {
     authHandler := auth.NewAuthHandler()
     complaintHandler := complaint.NewComplaintHandler()
     provinceHandler := province.NewProvinceHandler()
+    feedHandler := feed.NewFeedHandler() // 🔥 TAMBAHKAN FEED HANDLER
 
     // Setup router
     r := gin.Default()
@@ -64,6 +66,7 @@ func main() {
     auth.RegisterRoutes(api, authHandler)
     complaint.RegisterRoutes(api, complaintHandler)
     province.RegisterRoutes(api, provinceHandler)
+    feed.RegisterFeedRoutes(api, feedHandler) // 🔥 TAMBAHKAN FEED ROUTES
 
     // Start server
     port := os.Getenv("PORT")

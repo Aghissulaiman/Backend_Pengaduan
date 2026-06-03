@@ -10,7 +10,7 @@ func RegisterRoutes(r *gin.RouterGroup, handler *ProvinceHandler) {
     public := r.Group("/")
     {
         public.GET("/provinces", handler.GetAllProvinces)
-        public.GET("/provinces/:province_id/regencies", handler.GetRegencies)
+        public.GET("/provinces/:province_api_id/regencies", handler.GetRegencies)
         public.GET("/regencies/:regency_id/districts", handler.GetDistricts)
         public.GET("/districts/:district_id/villages", handler.GetVillages)
     }

@@ -8,7 +8,7 @@ type RegisterRequest struct {
     Email      string `json:"email" binding:"required,email"`
     Fullname   string `json:"fullname" binding:"required"`
     Phone      string `json:"phone"`
-    ProvinceID int    `json:"province_id"`
+    ProvinceID int    `json:"province_api_id"`
 }
 
 type LoginRequest struct {
@@ -21,7 +21,7 @@ type GoogleLoginRequest struct {
     Email      string `json:"email" binding:"required"`
     Fullname   string `json:"fullname" binding:"required"`
     Avatar     string `json:"avatar"`
-    ProvinceID int    `json:"province_id"`
+    ProvinceID int    `json:"province_api_id"`
 }
 
 type LoginResponse struct {

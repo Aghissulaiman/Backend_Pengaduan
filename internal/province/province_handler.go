@@ -41,11 +41,11 @@ func (h *ProvinceHandler) GetAllProvinces(c *gin.Context) {
 // @Summary Get regencies by province ID
 // @Tags Province
 // @Produce json
-// @Param province_id path int true "Province ID"
+// @Param province_api_id path int true "Province ID"
 // @Success 200 {object} dto.Response
-// @Router /api/provinces/{province_id}/regencies [get]
+// @Router /api/provinces/{province_api_id}/regencies [get]
 func (h *ProvinceHandler) GetRegencies(c *gin.Context) {
-    provinceID, err := strconv.Atoi(c.Param("province_id"))
+    provinceID, err := strconv.Atoi(c.Param("province_api_id"))
     if err != nil {
         c.JSON(http.StatusBadRequest, dto.Response{
             Success: false,

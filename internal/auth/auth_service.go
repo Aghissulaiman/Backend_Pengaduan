@@ -97,7 +97,7 @@ func (s *AuthService) Login(req *LoginRequest) (*LoginResponse, error) {
         "user_id":     user.ID,
         "username":    user.Username,
         "role":        user.Role,
-        "province_id": user.ProvinceApiID,
+        "province_api_id": user.ProvinceApiID,
         "exp":         time.Now().Add(24 * time.Hour).Unix(),
     })
 
@@ -192,7 +192,7 @@ func (s *AuthService) GoogleLogin(req *GoogleLoginRequest) (*LoginResponse, erro
         "user_id":     user.ID,
         "username":    user.Username,
         "role":        user.Role,
-        "province_id": user.ProvinceApiID,
+        "province_api_id": user.ProvinceApiID,
         "exp":         time.Now().Add(24 * time.Hour).Unix(),
     })
 

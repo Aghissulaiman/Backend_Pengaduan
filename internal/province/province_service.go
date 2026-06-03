@@ -51,10 +51,10 @@ func (s *ProvinceService) GetProvinceByID(id int) (*Province, error) {
 // GetRegenciesByProvince ambil kabupaten/kota berdasarkan provinsi
 func (s *ProvinceService) GetRegenciesByProvince(provinceID int) ([]Regency, error) {
     rows, err := db.DB.Query(`
-        SELECT r.id, r.api_id, r.province_id, p.name, r.name, r.type
+        SELECT r.id, r.api_id, r.province_api_id, p.name, r.name, r.type
         FROM regencies r
-        JOIN provinces p ON r.province_id = p.id
-        WHERE r.province_id = ? AND r.is_active = TRUE
+        JOIN provinces p ON r.province_api_id = p.id
+        WHERE r.province_api_id = ? AND r.is_active = TRUE
         ORDER BY r.name`, provinceID)
     if err != nil {
         return nil, err
@@ -133,7 +133,7 @@ func (s *ProvinceService) SyncProvinces(provinces []ProvinceData) error {
 // SyncRegencies sinkronisasi data kabupaten dari API eksternal
 func (s *ProvinceService) SyncRegencies(regencies []RegencyData) error {
     for _, r := range regencies {
-        // Cari province_id berdasarkan api_id
+        // Cari province_api_id berdasarkan api_id
         var provinceID int
         err := db.DB.QueryRow("SELECT id FROM provinces WHERE api_id = ?", r.ProvinceID).Scan(&provinceID)
         if err != nil {
@@ -141,7 +141,7 @@ func (s *ProvinceService) SyncRegencies(regencies []RegencyData) error {
         }
 
         _, err = db.DB.Exec(`
-            INSERT INTO regencies (api_id, province_id, province_api_id, name, type)
+            INSERT INTO regencies (api_id, province_api_id, province_api_id, name, type)
             VALUES (?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE name = VALUES(name), type = VALUES(type)`,
             r.ID, provinceID, r.ProvinceID, r.Value, r.Type)
