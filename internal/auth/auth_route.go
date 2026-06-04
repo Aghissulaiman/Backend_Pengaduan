@@ -20,5 +20,7 @@ func RegisterRoutes(r *gin.RouterGroup, handler *AuthHandler) {
         user.PUT("/profile", handler.UpdateProfile)
         user.GET("/:username", handler.GetUserProfile)        // 🔥 TAMBAHKAN
         user.GET("/:username/posts", handler.GetUserPosts)    // 🔥 TAMBAHKAN
+        user.POST("/follow", handler.FollowUser)      // 🔥 TAMBAHKAN
+        user.POST("/unfollow", handler.UnfollowUser)  // 🔥 TAMBAHKAN
     }
 }

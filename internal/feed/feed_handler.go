@@ -25,7 +25,12 @@ func (h *FeedHandler) GetFeed(c *gin.Context) {
     req.Limit, _ = strconv.Atoi(c.DefaultQuery("limit", "20"))
     req.Type = c.DefaultQuery("type", "for-you")
 
-    posts, total, err := h.service.GetFeedPosts(userID.(int), &req)
+    // Ambil parameter filter dari query string
+    provinceID := c.Query("province_id")
+    categoryID := c.Query("category_id")
+    status := c.Query("status")
+
+    posts, total, err := h.service.GetFeedPosts(userID.(int), &req, provinceID, categoryID, status)
     if err != nil {
         c.JSON(http.StatusInternalServerError, dto.Response{
             Success: false,

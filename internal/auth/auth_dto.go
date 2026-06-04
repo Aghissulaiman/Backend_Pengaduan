@@ -90,3 +90,8 @@ type UserPostResponse struct {
     IsLiked      bool    `json:"is_liked"`
     IsSaved      bool    `json:"is_saved"`
 }
+
+// FollowRequest - request follow/unfollow
+type FollowRequest struct {
+    FollowingID int `json:"following_id" binding:"required"`
+}

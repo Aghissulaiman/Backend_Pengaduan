@@ -341,7 +341,6 @@ func (s *AuthService) SubmitComplaint(userID int, req *SubmitComplaintRequest) (
     }, nil
 }
 
-// GetUserProfileByUsername - ambil profile user lain berdasarkan username
 func (s *AuthService) GetUserProfileByUsername(currentUserID int, username string) (*UserProfileResponse, error) {
     var profile UserProfileResponse
     var avatar, bio, provinceName sql.NullString
@@ -365,6 +364,8 @@ func (s *AuthService) GetUserProfileByUsername(currentUserID int, username strin
         &profile.PostsCount, &profile.FollowersCount, &profile.FollowingCount, &profile.IsFollowing,
     )
     if err != nil {
+        // 🔥 TAMBAHKAN LOG UNTUK DEBUG
+        fmt.Printf("Error GetUserProfileByUsername: %v, currentUserID: %d, username: %s\n", err, currentUserID, username)
         return nil, errors.New("user tidak ditemukan")
     }
 
@@ -380,6 +381,46 @@ func (s *AuthService) GetUserProfileByUsername(currentUserID int, username strin
     profile.JoinedDate = joinedAt.Format("2006-01-02")
 
     return &profile, nil
+}
+
+// FollowUser - follow user
+func (s *AuthService) FollowUser(followerID, followingID int) error {
+    if followerID == followingID {
+        return errors.New("tidak bisa follow diri sendiri")
+    }
+
+    // Cek apakah sudah follow
+    var exists bool
+    db.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM follows WHERE follower_id = ? AND following_id = ?)", 
+        followerID, followingID).Scan(&exists)
+    if exists {
+        return errors.New("sudah follow")
+    }
+
+    // Insert follow dengan status 'accepted' (langsung accepted, tanpa pending)
+    _, err := db.DB.Exec(`
+        INSERT INTO follows (follower_id, following_id, status, created_at)
+        VALUES (?, ?, 'accepted', NOW())`,
+        followerID, followingID)
+    
+    return err
+}
+
+// UnfollowUser - unfollow user
+func (s *AuthService) UnfollowUser(followerID, followingID int) error {
+    result, err := db.DB.Exec(`
+        DELETE FROM follows 
+        WHERE follower_id = ? AND following_id = ?`,
+        followerID, followingID)
+    if err != nil {
+        return err
+    }
+    
+    rows, _ := result.RowsAffected()
+    if rows == 0 {
+        return errors.New("tidak sedang follow")
+    }
+    return nil
 }
 
 // GetUserPostsByUsername - ambil posts user lain
