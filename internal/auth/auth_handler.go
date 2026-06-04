@@ -171,3 +171,57 @@ func (h *AuthHandler) UpdateProfile(c *gin.Context) {
         Data:    user,
     })
 }
+
+// GetUserProfile - GET /api/users/:username
+func (h *AuthHandler) GetUserProfile(c *gin.Context) {
+    currentUserID, err := h.getUserID(c)
+    if err != nil {
+        c.JSON(http.StatusUnauthorized, dto.Response{
+            Success: false,
+            Message: err.Error(),
+        })
+        return
+    }
+
+    username := c.Param("username")
+    profile, err := h.service.GetUserProfileByUsername(currentUserID, username)
+    if err != nil {
+        c.JSON(http.StatusNotFound, dto.Response{
+            Success: false,
+            Message: err.Error(),
+        })
+        return
+    }
+
+    c.JSON(http.StatusOK, dto.Response{
+        Success: true,
+        Data:    profile,
+    })
+}
+
+// GetUserPosts - GET /api/users/:username/posts
+func (h *AuthHandler) GetUserPosts(c *gin.Context) {
+    currentUserID, err := h.getUserID(c)
+    if err != nil {
+        c.JSON(http.StatusUnauthorized, dto.Response{
+            Success: false,
+            Message: err.Error(),
+        })
+        return
+    }
+
+    username := c.Param("username")
+    posts, err := h.service.GetUserPostsByUsername(currentUserID, username)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, dto.Response{
+            Success: false,
+            Message: "Gagal mengambil postingan",
+        })
+        return
+    }
+
+    c.JSON(http.StatusOK, dto.Response{
+        Success: true,
+        Data:    posts,
+    })
+}

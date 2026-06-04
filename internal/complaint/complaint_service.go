@@ -711,46 +711,96 @@ func (s *ComplaintService) notifyGovernor(provinceID, complaintID int, trackingC
 
 // GetUserComplaints ambil pengaduan milik user tertentu
 func (s *ComplaintService) GetUserComplaints(userID int, page, limit int) ([]Complaint, int, error) {
-	offset := (page - 1) * limit
+    offset := (page - 1) * limit
 
-	rows, err := db.DB.Query(`
-		SELECT c.id, c.tracking_code, c.user_id, u.username, u.fullname,
-			c.province_api_id, p.name,
-			c.regency_id, r.name, c.district_id, d.name, c.village_id, v.name,
-			c.location_detail, c.category_id, cat.name, c.description, c.photo,
-			c.status, c.rejected_reason, c.assigned_investigator_id, 
-			COALESCE(inv.username, ''), c.investigation_result, c.investigation_evidence,
-			c.created_at, c.updated_at
-		FROM complaints c
-		JOIN users u ON c.user_id = u.id
-		JOIN provinces p ON c.province_api_id = p.id
-		LEFT JOIN regencies r ON c.regency_id = r.id
-		LEFT JOIN districts d ON c.district_id = d.id
-		LEFT JOIN villages v ON c.village_id = v.id
-		JOIN categories cat ON c.category_id = cat.id
-		LEFT JOIN users inv ON c.assigned_investigator_id = inv.id
-		WHERE c.user_id = ?
-		ORDER BY c.created_at DESC LIMIT ? OFFSET ?`,
-		userID, limit, offset,
-	)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
+    rows, err := db.DB.Query(`
+        SELECT c.id, c.tracking_code, c.user_id, 
+            COALESCE(u.username, '') as user_name,
+            COALESCE(u.fullname, '') as user_fullname,
+            c.province_api_id, COALESCE(p.name, '') as province_name,
+            c.regency_id, r.name as regency_name,
+            c.district_id, d.name as district_name,
+            c.village_id, v.name as village_name,
+            c.location_detail, c.category_id, COALESCE(cat.name, '') as category_name,
+            c.description, c.photo,
+            c.status, c.rejected_reason, c.assigned_investigator_id, 
+            COALESCE(inv.username, '') as investigator_name,
+            c.investigation_result, c.investigation_evidence,
+            c.created_at, c.updated_at
+        FROM complaints c
+        JOIN users u ON c.user_id = u.id
+        JOIN provinces p ON c.province_api_id = p.api_id
+        LEFT JOIN regencies r ON c.regency_id = r.api_id
+        LEFT JOIN districts d ON c.district_id = d.api_id
+        LEFT JOIN villages v ON c.village_id = v.api_id
+        JOIN categories cat ON c.category_id = cat.id
+        LEFT JOIN users inv ON c.assigned_investigator_id = inv.id
+        WHERE c.user_id = ?
+        ORDER BY c.created_at DESC LIMIT ? OFFSET ?`,
+        userID, limit, offset,
+    )
+    if err != nil {
+        return nil, 0, err
+    }
+    defer rows.Close()
 
-	var complaints []Complaint
-	for rows.Next() {
-		c, err := s.scanComplaint(rows)
-		if err != nil {
-			continue
-		}
-		complaints = append(complaints, c)
-	}
+    var complaints []Complaint
+    for rows.Next() {
+        var c Complaint
+        var regencyID, districtID, villageID sql.NullInt64
+        var regencyName, districtName, villageName, photo, rejectedReason sql.NullString
+        var assignedInvID sql.NullInt64
+        var assignedInvName, investigationResult, investigationEvidence sql.NullString
 
-	var total int
-	db.DB.QueryRow("SELECT COUNT(*) FROM complaints WHERE user_id = ?", userID).Scan(&total)
+        err := rows.Scan(
+            &c.ID, &c.TrackingCode, &c.UserID,
+            &c.UserName, &c.UserFullname,
+            &c.ProvinceID, &c.ProvinceName,
+            &regencyID, &regencyName,
+            &districtID, &districtName,
+            &villageID, &villageName,
+            &c.LocationDetail,
+            &c.CategoryID, &c.CategoryName,
+            &c.Description, &photo,
+            &c.Status, &rejectedReason,
+            &assignedInvID, &assignedInvName,
+            &investigationResult, &investigationEvidence,
+            &c.CreatedAt, &c.UpdatedAt,
+        )
 
-	return complaints, total, nil
+        if err != nil {
+            fmt.Printf("Scan error in GetUserComplaints: %v\n", err)
+            continue
+        }
+
+        if photo.Valid {
+            c.Photo = &photo.String
+        }
+        if rejectedReason.Valid {
+            c.RejectedReason = &rejectedReason.String
+        }
+        if assignedInvID.Valid {
+            id := int(assignedInvID.Int64)
+            c.AssignedInvestigatorID = &id
+            if assignedInvName.Valid {
+                c.AssignedInvestigatorName = &assignedInvName.String
+            }
+        }
+        if investigationResult.Valid {
+            c.InvestigationResult = &investigationResult.String
+        }
+        if investigationEvidence.Valid {
+            c.InvestigationEvidence = &investigationEvidence.String
+        }
+
+        c.StatusText = getStatusText(c.Status)
+        complaints = append(complaints, c)
+    }
+
+    var total int
+    db.DB.QueryRow("SELECT COUNT(*) FROM complaints WHERE user_id = ?", userID).Scan(&total)
+
+    return complaints, total, nil
 }
 
 // GetAllComplaints untuk admin/governor/investigator

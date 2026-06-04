@@ -58,3 +58,35 @@ type Complaint struct {
     Status         string    `json:"status"`
     CreatedAt      time.Time `json:"created_at"`
 }
+
+// UserProfileResponse - response untuk profile user lain
+type UserProfileResponse struct {
+    ID            int     `json:"id"`
+    Username      string  `json:"username"`
+    Fullname      string  `json:"fullname"`
+    Email         string  `json:"email"`
+    Avatar        *string `json:"avatar"`
+    Bio           *string `json:"bio"`
+    Role          string  `json:"role"`
+    ProvinceName  *string `json:"province_name"`
+    IsFollowing   bool    `json:"is_following"`
+    FollowersCount int    `json:"followers_count"`
+    FollowingCount int    `json:"following_count"`
+    PostsCount    int     `json:"posts_count"`
+    JoinedDate    string  `json:"joined_date"`
+}
+
+// UserPostResponse - response untuk posts user
+type UserPostResponse struct {
+    ID           int     `json:"id"`
+    TrackingCode string  `json:"tracking_code"`
+    Description  string  `json:"description"`
+    LocationDetail string `json:"location_detail"`
+    Status       string  `json:"status"`
+    CreatedAt    string  `json:"created_at"`
+    Photo        *string `json:"photo"`
+    LikesCount   int     `json:"likes_count"`
+    CommentsCount int    `json:"comments_count"`
+    IsLiked      bool    `json:"is_liked"`
+    IsSaved      bool    `json:"is_saved"`
+}

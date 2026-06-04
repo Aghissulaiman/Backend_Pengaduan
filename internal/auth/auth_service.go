@@ -341,9 +341,95 @@ func (s *AuthService) SubmitComplaint(userID int, req *SubmitComplaintRequest) (
     }, nil
 }
 
+// GetUserProfileByUsername - ambil profile user lain berdasarkan username
+func (s *AuthService) GetUserProfileByUsername(currentUserID int, username string) (*UserProfileResponse, error) {
+    var profile UserProfileResponse
+    var avatar, bio, provinceName sql.NullString
+    var joinedAt time.Time
+
+    query := `
+        SELECT u.id, u.username, u.fullname, u.email, u.avatar, u.bio, u.role, p.name as province_name,
+               u.created_at,
+               (SELECT COUNT(*) FROM complaints WHERE user_id = u.id) as posts_count,
+               (SELECT COUNT(*) FROM follows WHERE following_id = u.id AND status = 'accepted') as followers_count,
+               (SELECT COUNT(*) FROM follows WHERE follower_id = u.id AND status = 'accepted') as following_count,
+               EXISTS(SELECT 1 FROM follows WHERE follower_id = ? AND following_id = u.id AND status = 'accepted') as is_following
+        FROM users u
+        LEFT JOIN provinces p ON u.province_api_id = p.api_id
+        WHERE u.username = ? AND u.is_active = TRUE
+    `
+
+    err := db.DB.QueryRow(query, currentUserID, username).Scan(
+        &profile.ID, &profile.Username, &profile.Fullname, &profile.Email,
+        &avatar, &bio, &profile.Role, &provinceName, &joinedAt,
+        &profile.PostsCount, &profile.FollowersCount, &profile.FollowingCount, &profile.IsFollowing,
+    )
+    if err != nil {
+        return nil, errors.New("user tidak ditemukan")
+    }
+
+    if avatar.Valid {
+        profile.Avatar = &avatar.String
+    }
+    if bio.Valid {
+        profile.Bio = &bio.String
+    }
+    if provinceName.Valid {
+        profile.ProvinceName = &provinceName.String
+    }
+    profile.JoinedDate = joinedAt.Format("2006-01-02")
+
+    return &profile, nil
+}
+
+// GetUserPostsByUsername - ambil posts user lain
+func (s *AuthService) GetUserPostsByUsername(currentUserID int, username string) ([]UserPostResponse, error) {
+    query := `
+        SELECT c.id, c.tracking_code, c.description, c.location_detail, c.status, c.created_at, c.photo,
+               COALESCE((SELECT COUNT(*) FROM feed_likes WHERE post_id = c.id), 0) as likes_count,
+               COALESCE((SELECT COUNT(*) FROM feed_comments WHERE post_id = c.id), 0) as comments_count,
+               CASE WHEN EXISTS(SELECT 1 FROM feed_likes WHERE post_id = c.id AND user_id = ?) THEN 1 ELSE 0 END as is_liked,
+               CASE WHEN EXISTS(SELECT 1 FROM feed_saves WHERE post_id = c.id AND user_id = ?) THEN 1 ELSE 0 END as is_saved
+        FROM complaints c
+        JOIN users u ON c.user_id = u.id
+        WHERE u.username = ? AND c.status IN ('completed', 'process_report_verified', 'investigation_done')
+        ORDER BY c.created_at DESC
+    `
+
+    rows, err := db.DB.Query(query, currentUserID, currentUserID, username)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+    var posts []UserPostResponse
+    for rows.Next() {
+        var p UserPostResponse
+        var photo sql.NullString
+        var createdAt time.Time
+
+        err := rows.Scan(
+            &p.ID, &p.TrackingCode, &p.Description, &p.LocationDetail,
+            &p.Status, &createdAt, &photo,
+            &p.LikesCount, &p.CommentsCount, &p.IsLiked, &p.IsSaved,
+        )
+        if err != nil {
+            continue
+        }
+        p.CreatedAt = createdAt.Format("2006-01-02T15:04:05Z07:00")
+        if photo.Valid {
+            p.Photo = &photo.String
+        }
+        posts = append(posts, p)
+    }
+
+    return posts, nil
+}
+
 func min(a, b int) int {
     if a < b {
         return a
     }
     return b
 }
+
