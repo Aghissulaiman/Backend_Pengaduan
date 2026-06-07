@@ -19,5 +19,7 @@ func RegisterChatRoutes(r *gin.RouterGroup, handler *ChatHandler) {
         chat.POST("/follow/accept", handler.AcceptFollow)
         chat.POST("/follow/reject", handler.RejectFollow)
         chat.GET("/follow/requests", handler.GetFollowRequests)
+        chat.GET("/follow/status", handler.GetFollowStatus)
+        
     }
 }

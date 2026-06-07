@@ -921,10 +921,30 @@ func (h *ComplaintHandler) VerifyProcessReport(c *gin.Context) {
 	
 	adminID := c.GetInt("user_id")
 	
-	err = h.service.VerifyProcessReport(id, req.Status, req.AdminNote, adminID)
+	// 🔥 PERBAIKI: Gunakan nilai yang sesuai dengan ENUM di database
+	newStatus := "pending"
+	if req.Status == "verified" {
+		newStatus = "verified"
+	} else if req.Status == "rejected" {
+		newStatus = "rejected"
+	}
+	
+	_, err = db.DB.Exec(`
+		UPDATE process_reports 
+		SET status = ?, admin_notes = ?, verified_by = ?, verified_at = NOW()
+		WHERE id = ?
+	`, newStatus, req.AdminNote, adminID, id)
+	
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": err.Error()})
 		return
+	}
+	
+	// Jika status = verified, update status complaint menjadi 'governor_processing'
+	if req.Status == "verified" {
+		var complaintID int
+		db.DB.QueryRow("SELECT complaint_id FROM process_reports WHERE id = ?", id).Scan(&complaintID)
+		db.DB.Exec("UPDATE complaints SET status = 'governor_processing' WHERE id = ?", complaintID)
 	}
 	
 	c.JSON(200, gin.H{"success": true, "message": "Laporan proses berhasil diverifikasi"})
@@ -950,10 +970,31 @@ func (h *ComplaintHandler) VerifyCompletionReport(c *gin.Context) {
 	
 	adminID := c.GetInt("user_id")
 	
-	err = h.service.VerifyCompletionReport(id, req.Status, req.AdminNote, adminID)
+	// 🔥 PERBAIKI: Gunakan nilai yang sesuai dengan ENUM di database
+	// ENUM di completion_reports: 'pending', 'verified', 'rejected'
+	newStatus := "pending"
+	if req.Status == "verified" {
+		newStatus = "verified"
+	} else if req.Status == "rejected" {
+		newStatus = "rejected"
+	}
+	
+	_, err = db.DB.Exec(`
+		UPDATE completion_reports 
+		SET status = ?, admin_notes = ?, verified_by = ?, verified_at = NOW()
+		WHERE id = ?
+	`, newStatus, req.AdminNote, adminID, id)
+	
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": err.Error()})
 		return
+	}
+	
+	// Jika status = verified, update status complaint menjadi 'completed'
+	if req.Status == "verified" {
+		var complaintID int
+		db.DB.QueryRow("SELECT complaint_id FROM completion_reports WHERE id = ?", id).Scan(&complaintID)
+		db.DB.Exec("UPDATE complaints SET status = 'completed' WHERE id = ?", complaintID)
 	}
 	
 	c.JSON(200, gin.H{"success": true, "message": "Laporan akhir berhasil diverifikasi"})
@@ -1858,4 +1899,212 @@ func (h *ComplaintHandler) GetActivityStats(c *gin.Context) {
 	db.DB.QueryRow("SELECT COUNT(*) FROM activity_logs WHERE MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())").Scan(&stats.ThisMonth)
 	
 	c.JSON(200, gin.H{"success": true, "data": stats})
+}
+
+// GetProcessReportsByComplaint - ambil laporan proses berdasarkan complaint ID
+func (h *ComplaintHandler) GetProcessReportsByComplaint(c *gin.Context) {
+	complaintID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(400, gin.H{"success": false, "message": "ID tidak valid"})
+		return
+	}
+
+	rows, err := db.DB.Query(`
+		SELECT 
+			pr.id,
+			pr.process_photos,
+			pr.process_notes,
+			pr.process_date,
+			pr.status,
+			pr.submitted_at,
+			u.fullname as governor_name
+		FROM process_reports pr
+		JOIN users u ON pr.governor_id = u.id
+		WHERE pr.complaint_id = ?
+		ORDER BY pr.submitted_at DESC
+	`, complaintID)
+
+	if err != nil {
+		c.JSON(500, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	var reports []map[string]interface{}
+	for rows.Next() {
+		var id int
+		var processPhotos, processNotes, processDate, status sql.NullString
+		var submittedAt time.Time
+		var governorName string
+
+		err := rows.Scan(&id, &processPhotos, &processNotes, &processDate, &status, &submittedAt, &governorName)
+		if err != nil {
+			continue
+		}
+
+		report := map[string]interface{}{
+			"id":            id,
+			"governor_name": governorName,
+			"process_notes": nil,
+			"process_date":  nil,
+			"status":        "verified",
+			"submitted_at":  submittedAt,
+		}
+
+		if processPhotos.Valid {
+			report["process_photos"] = processPhotos.String
+		}
+		if processNotes.Valid {
+			report["process_notes"] = processNotes.String
+		}
+		if processDate.Valid {
+			report["process_date"] = processDate.String
+		}
+		if status.Valid {
+			report["status"] = status.String
+		}
+
+		reports = append(reports, report)
+	}
+
+	c.JSON(200, gin.H{
+		"success": true,
+		"data":    reports,
+	})
+}
+
+// GetCompletionReportsByComplaint - ambil laporan akhir berdasarkan complaint ID
+func (h *ComplaintHandler) GetCompletionReportsByComplaint(c *gin.Context) {
+	complaintID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(400, gin.H{"success": false, "message": "ID tidak valid"})
+		return
+	}
+
+	rows, err := db.DB.Query(`
+		SELECT 
+			cr.id,
+			cr.final_photos,
+			cr.completion_date,
+			cr.work_details,
+			cr.cost,
+			cr.cost_details,
+			cr.status,
+			cr.submitted_at,
+			u.fullname as governor_name
+		FROM completion_reports cr
+		JOIN users u ON cr.governor_id = u.id
+		WHERE cr.complaint_id = ?
+		ORDER BY cr.submitted_at DESC
+	`, complaintID)
+
+	if err != nil {
+		c.JSON(500, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	var reports []map[string]interface{}
+	for rows.Next() {
+		var id int
+		var finalPhotos, completionDate, workDetails, costDetails, status sql.NullString
+		var cost sql.NullFloat64
+		var submittedAt time.Time
+		var governorName string
+
+		err := rows.Scan(&id, &finalPhotos, &completionDate, &workDetails, &cost, &costDetails, &status, &submittedAt, &governorName)
+		if err != nil {
+			continue
+		}
+
+		report := map[string]interface{}{
+			"id":             id,
+			"governor_name":  governorName,
+			"work_details":   nil,
+			"completion_date": nil,
+			"cost":           nil,
+			"cost_details":   nil,
+			"status":         "verified",
+			"submitted_at":   submittedAt,
+		}
+
+		if finalPhotos.Valid {
+			report["final_photos"] = finalPhotos.String
+		}
+		if completionDate.Valid {
+			report["completion_date"] = completionDate.String
+		}
+		if workDetails.Valid {
+			report["work_details"] = workDetails.String
+		}
+		if cost.Valid {
+			report["cost"] = cost.Float64
+		}
+		if costDetails.Valid {
+			report["cost_details"] = costDetails.String
+		}
+		if status.Valid {
+			report["status"] = status.String
+		}
+
+		reports = append(reports, report)
+	}
+
+	c.JSON(200, gin.H{
+		"success": true,
+		"data":    reports,
+	})
+}
+
+// GetInvestigatorMonthlyStats - ambil statistik per bulan untuk investigator
+func (h *ComplaintHandler) GetInvestigatorMonthlyStats(c *gin.Context) {
+    userID := c.GetInt("user_id")
+    
+    // Ambil province_api_id dari investigator
+    var provinceApiID int
+    err := db.DB.QueryRow(`
+        SELECT COALESCE(province_api_id, 0) FROM users 
+        WHERE id = ? AND role = 'investigator' AND is_active = TRUE`,
+        userID,
+    ).Scan(&provinceApiID)
+    
+    if err != nil {
+        c.JSON(500, gin.H{"success": false, "message": err.Error()})
+        return
+    }
+    
+    // Query untuk mengambil statistik per bulan (6 bulan terakhir)
+    rows, err := db.DB.Query(`
+        SELECT 
+            DATE_FORMAT(created_at, '%b') as month,
+            COUNT(*) as count
+        FROM complaints
+        WHERE province_api_id = ? 
+        AND assigned_investigator_id = ?
+        AND created_at >= DATE_SUB(NOW(), INTERVAL 5 MONTH)
+        GROUP BY YEAR(created_at), MONTH(created_at)
+        ORDER BY MIN(created_at) ASC
+    `, provinceApiID, userID)
+    
+    if err != nil {
+        c.JSON(500, gin.H{"success": false, "message": err.Error()})
+        return
+    }
+    defer rows.Close()
+    
+    var monthlyStats []map[string]interface{}
+    for rows.Next() {
+        var month string
+        var count int
+        rows.Scan(&month, &count)
+        monthlyStats = append(monthlyStats, map[string]interface{}{
+            "month": month,
+            "count": count,
+        })
+    }
+    
+    c.JSON(200, gin.H{
+        "success": true,
+        "data": monthlyStats,
+    })
 }

@@ -21,6 +21,10 @@ func RegisterRoutes(r *gin.RouterGroup, handler *ComplaintHandler) {
 		user.GET("/my", handler.GetMyComplaints)
 		user.GET("/:id", handler.GetComplaintDetail)
 		user.PATCH("/:id/status", handler.UpdateComplaintStatus)
+		
+		// 🔥 TAMBAHKAN ROUTE UNTUK MENGAMBIL LAPORAN PER COMPLAINT
+		user.GET("/:id/process-reports", handler.GetProcessReportsByComplaint)
+		user.GET("/:id/completion-reports", handler.GetCompletionReportsByComplaint)
 	}
 
 	// Routes untuk governor & admin & investigator (lihat semua pengaduan)
@@ -38,7 +42,7 @@ func RegisterRoutes(r *gin.RouterGroup, handler *ComplaintHandler) {
 		governor.GET("/dashboard/stats", handler.GetGovernorStats)
 		governor.GET("/investigators", handler.GetInvestigators)
 		governor.GET("/investigations", handler.GetGovernorInvestigations)
-		governor.GET("/reports", handler.GetGovernorReports) // 🔥 TAMBAHKAN ROUTE LAPORAN
+		governor.GET("/reports", handler.GetGovernorReports)
 
 		// Complaint actions
 		governor.GET("/complaints", handler.GetGovernorComplaints)
@@ -55,6 +59,7 @@ func RegisterRoutes(r *gin.RouterGroup, handler *ComplaintHandler) {
 		investigator.GET("/dashboard/stats", handler.GetInvestigatorStats)
 		investigator.GET("/complaints", handler.GetInvestigatorComplaints)
 		investigator.GET("/complaints/:id", handler.GetComplaintDetail)
+		investigator.GET("/dashboard/monthly-stats", handler.GetInvestigatorMonthlyStats)
 
 		// Investigation actions
 		investigator.POST("/complaints/:id/result", handler.SubmitInvestigationResultExtended)
@@ -66,7 +71,7 @@ func RegisterRoutes(r *gin.RouterGroup, handler *ComplaintHandler) {
 	{
 		admin.GET("/dashboard", handler.GetDashboardStats)
 		admin.GET("/dashboard/stats", handler.GetDashboardStats)
-		admin.GET("/dashboard/charts", handler.GetDashboardCharts) // 🔥 TAMBAHKAN
+		admin.GET("/dashboard/charts", handler.GetDashboardCharts)
 		admin.GET("/complaints/count", handler.GetComplaintsCountByProvince)
 		admin.GET("/complaints/by-province", handler.GetComplaintsByProvince)
 

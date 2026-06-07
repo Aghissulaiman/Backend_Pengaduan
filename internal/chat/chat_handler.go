@@ -3,7 +3,7 @@ package chat
 import (
     "net/http"
     "strconv"
-
+    "pengaduan_be2/pkg/db"
     "github.com/gin-gonic/gin"
     "pengaduan_be2/internal/dto"
 )
@@ -189,33 +189,64 @@ func (h *ChatHandler) GetContacts(c *gin.Context) {
     })
 }
 
-// FollowUser - POST /api/chat/follow
+// FollowUser - follow user lain
 func (h *ChatHandler) FollowUser(c *gin.Context) {
-    userID, _ := c.Get("user_id")
-
+    userID := c.GetInt("user_id")
+    
     var req struct {
         FollowingID int `json:"following_id" binding:"required"`
     }
+    
     if err := c.ShouldBindJSON(&req); err != nil {
-        c.JSON(http.StatusBadRequest, dto.Response{
-            Success: false,
-            Message: err.Error(),
-        })
+        c.JSON(400, gin.H{"success": false, "message": err.Error()})
         return
     }
-
-    if err := h.service.FollowUser(userID.(int), req.FollowingID); err != nil {
-        c.JSON(http.StatusInternalServerError, dto.Response{
-            Success: false,
-            Message: err.Error(),
-        })
+    
+    if userID == req.FollowingID {
+        c.JSON(400, gin.H{"success": false, "message": "Tidak bisa follow diri sendiri"})
         return
     }
-
-    c.JSON(http.StatusOK, dto.Response{
-        Success: true,
-        Message: "Permintaan follow dikirim",
-    })
+    
+    // Cek apakah sudah ada follow
+    var existingStatus string
+    err := db.DB.QueryRow(`
+        SELECT status FROM follows 
+        WHERE follower_id = ? AND following_id = ?
+    `, userID, req.FollowingID).Scan(&existingStatus)
+    
+    if err == nil {
+        // Sudah ada record
+        if existingStatus == "accepted" {
+            c.JSON(200, gin.H{"success": true, "message": "Sudah follow"})
+            return
+        }
+        if existingStatus == "pending" {
+            // Update jadi accepted
+            _, err = db.DB.Exec(`
+                UPDATE follows SET status = 'accepted', updated_at = NOW()
+                WHERE follower_id = ? AND following_id = ?
+            `, userID, req.FollowingID)
+            if err != nil {
+                c.JSON(500, gin.H{"success": false, "message": err.Error()})
+                return
+            }
+            c.JSON(200, gin.H{"success": true, "message": "Berhasil follow"})
+            return
+        }
+    }
+    
+    // Insert follow baru
+    _, err = db.DB.Exec(`
+        INSERT INTO follows (follower_id, following_id, status, created_at)
+        VALUES (?, ?, 'accepted', NOW())
+    `, userID, req.FollowingID)
+    
+    if err != nil {
+        c.JSON(500, gin.H{"success": false, "message": err.Error()})
+        return
+    }
+    
+    c.JSON(200, gin.H{"success": true, "message": "Berhasil follow"})
 }
 
 // AcceptFollow - POST /api/chat/follow/accept
@@ -292,5 +323,41 @@ func (h *ChatHandler) GetFollowRequests(c *gin.Context) {
     c.JSON(http.StatusOK, dto.Response{
         Success: true,
         Data:    requests,
+    })
+}
+
+// GetFollowStatus - cek status follow antar user
+func (h *ChatHandler) GetFollowStatus(c *gin.Context) {
+    userID := c.GetInt("user_id")
+    otherIDStr := c.Query("user_id")
+    
+    if otherIDStr == "" {
+        c.JSON(400, gin.H{"success": false, "message": "user_id required"})
+        return
+    }
+    
+    otherID, err := strconv.Atoi(otherIDStr)
+    if err != nil {
+        c.JSON(400, gin.H{"success": false, "message": "invalid user_id"})
+        return
+    }
+    
+    var isFollowing bool
+    
+    // Cek apakah user follow other
+    err = db.DB.QueryRow(`
+        SELECT EXISTS(SELECT 1 FROM follows 
+        WHERE follower_id = ? AND following_id = ? AND status = 'accepted')
+    `, userID, otherID).Scan(&isFollowing)
+    
+    if err != nil {
+        isFollowing = false
+    }
+    
+    c.JSON(200, gin.H{
+        "success": true,
+        "data": gin.H{
+            "is_following": isFollowing,
+        },
     })
 }
