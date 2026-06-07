@@ -17,6 +17,9 @@ type GetMessagesQuery struct {
     Limit int `form:"limit,default:50"`
 }
 
-type FollowRequest struct {
-    FollowingID int `json:"following_id" binding:"required"`
+type FollowRequestResponse struct {
+    FollowerID       int     `json:"follower_id"`
+    FollowerUsername string  `json:"follower_username"`
+    FollowerName     string  `json:"follower_name"`
+    FollowerAvatar   *string `json:"follower_avatar"`
 }

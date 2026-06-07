@@ -128,3 +128,77 @@ type InvestigatorStatsResponse struct {
 	InvestigationDone     int `json:"investigation_done"`
 	Completed             int `json:"completed"`
 }
+
+// ChartData untuk dashboard admin (grafik)
+type ChartData struct {
+	MonthlyComplaints    []MonthlyComplaint `json:"monthly_complaints"`
+	ComplaintsByStatus   []StatusCount      `json:"complaints_by_status"`
+	ComplaintsByCategory []CategoryCount    `json:"complaints_by_category"`
+}
+
+type MonthlyComplaint struct {
+	Month string `json:"month"`
+	Total int    `json:"total"`
+}
+
+
+
+// UserResponse untuk admin kelola user
+type UserResponse struct {
+	ID           int       `json:"id"`
+	Username     string    `json:"username"`
+	Fullname     string    `json:"fullname"`
+	Email        string    `json:"email"`
+	Role         string    `json:"role"`
+	ProvinceApiID *int     `json:"province_api_id"`
+	IsActive     bool      `json:"is_active"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+// RecentComplaint untuk dashboard (5 terbaru)
+type RecentComplaint struct {
+	ID           int       `json:"id"`
+	TrackingCode string    `json:"tracking_code"`
+	Description  string    `json:"description"`
+	Status       string    `json:"status"`
+	StatusText   string    `json:"status_text"`
+	CreatedAt    time.Time `json:"created_at"`
+	UserName     string    `json:"user_name"`
+	UserFullname string    `json:"user_fullname"`
+}
+
+// RecentUser untuk dashboard (5 terbaru)
+type RecentUser struct {
+	ID        int       `json:"id"`
+	Username  string    `json:"username"`
+	Fullname  string    `json:"fullname"`
+	Role      string    `json:"role"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// Tambahkan di akhir file complaint_entity.go
+
+type ReportStats struct {
+	TotalComplaints       int              `json:"total_complaints"`
+	PendingGovernor       int              `json:"pending_governor"`
+	InvestigationAssigned int              `json:"investigation_assigned"`
+	InvestigationDone     int              `json:"investigation_done"`
+	GovernorProcessing    int              `json:"governor_processing"`
+	Completed             int              `json:"completed"`
+	Rejected              int              `json:"rejected"`
+	ThisMonth             int              `json:"this_month"`
+	ThisWeek              int              `json:"this_week"`
+	AvgCompletionDays     float64          `json:"avg_completion_days"`
+	ByCategory            []CategoryCount  `json:"by_category"`
+	ByStatus              []StatusCount    `json:"by_status"`
+	ByMonth               []MonthCount     `json:"by_month"`
+	ByProvince            []ProvinceCount  `json:"by_province"`
+}
+
+
+
+type ProvinceCount struct {
+	Name  string `json:"name"`
+	Total int    `json:"total"`
+}
+

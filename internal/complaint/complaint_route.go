@@ -1,8 +1,8 @@
 package complaint
 
 import (
-	"pengaduan_be2/internal/middleware"
 	"github.com/gin-gonic/gin"
+	"pengaduan_be2/internal/middleware"
 )
 
 func RegisterRoutes(r *gin.RouterGroup, handler *ComplaintHandler) {
@@ -39,7 +39,7 @@ func RegisterRoutes(r *gin.RouterGroup, handler *ComplaintHandler) {
 		governor.GET("/investigators", handler.GetInvestigators)
 		governor.GET("/investigations", handler.GetGovernorInvestigations)
 		governor.GET("/reports", handler.GetGovernorReports) // 🔥 TAMBAHKAN ROUTE LAPORAN
-		
+
 		// Complaint actions
 		governor.GET("/complaints", handler.GetGovernorComplaints)
 		governor.POST("/complaints/:id/assign", handler.AssignInvestigator)
@@ -55,7 +55,7 @@ func RegisterRoutes(r *gin.RouterGroup, handler *ComplaintHandler) {
 		investigator.GET("/dashboard/stats", handler.GetInvestigatorStats)
 		investigator.GET("/complaints", handler.GetInvestigatorComplaints)
 		investigator.GET("/complaints/:id", handler.GetComplaintDetail)
-		
+
 		// Investigation actions
 		investigator.POST("/complaints/:id/result", handler.SubmitInvestigationResultExtended)
 	}
@@ -65,5 +65,42 @@ func RegisterRoutes(r *gin.RouterGroup, handler *ComplaintHandler) {
 	admin.Use(middleware.AuthMiddleware(), middleware.RoleMiddleware("admin"))
 	{
 		admin.GET("/dashboard", handler.GetDashboardStats)
+		admin.GET("/dashboard/stats", handler.GetDashboardStats)
+		admin.GET("/dashboard/charts", handler.GetDashboardCharts) // 🔥 TAMBAHKAN
+		admin.GET("/complaints/count", handler.GetComplaintsCountByProvince)
+		admin.GET("/complaints/by-province", handler.GetComplaintsByProvince)
+
+		// User management
+		admin.GET("/users", handler.GetAllUsers)
+		admin.GET("/users/recent", handler.GetRecentUsers)
+		admin.PUT("/users/:id", handler.UpdateUser)
+		admin.PATCH("/users/:id/toggle-active", handler.ToggleUserActive)
+		admin.GET("/provinces-with-users", handler.GetProvincesWithUsers)
+
+		// Complaint management
+		admin.GET("/complaints", handler.GetAllComplaintsForAdmin)
+		admin.GET("/complaints/recent", handler.GetRecentComplaints)
+		admin.GET("/complaints/:id", handler.GetComplaintDetailForAdmin)
+
+		// Verification
+		admin.GET("/process-reports", handler.GetProcessReports)
+		admin.GET("/completion-reports", handler.GetCompletionReports)
+		admin.POST("/process-reports/:id/verify", handler.VerifyProcessReport)
+		admin.POST("/completion-reports/:id/verify", handler.VerifyCompletionReport)
+
+		// Admin category management
+		admin.GET("/categories", handler.GetCategoriesForAdmin)
+		admin.POST("/categories", handler.CreateCategory)
+		admin.PUT("/categories/:id", handler.UpdateCategory)
+		admin.DELETE("/categories/:id", handler.DeleteCategory)
+		admin.PATCH("/categories/:id/toggle-active", handler.ToggleCategoryActive)
+
+		// Admin reports
+		admin.GET("/reports/stats", handler.GetReportStats)
+		admin.GET("/reports/export", handler.ExportReport)
+
+		// Admin activity logs
+		admin.GET("/activities", handler.GetActivityLogs)
+		admin.GET("/activities/stats", handler.GetActivityStats)
 	}
 }

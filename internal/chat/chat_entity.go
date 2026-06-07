@@ -56,3 +56,4 @@ type Contact struct {
     LastMessage   *string `json:"last_message"`
     UnreadCount   int     `json:"unread_count"`
 }
+

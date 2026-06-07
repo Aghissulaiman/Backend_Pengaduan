@@ -143,7 +143,7 @@ type CategoryCount struct {
 
 type StatusCount struct {
 	Name  string `json:"name"`
-	Count int    `json:"count"`
+	Value int    `json:"value"`  // ← ganti Count menjadi Value
 }
 
 type MonthCount struct {

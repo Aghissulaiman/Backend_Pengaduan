@@ -306,26 +306,26 @@ func (s *ChatService) GetChatUsers(userID int, search string) ([]ChatUser, error
     return users, nil
 }
 
-// GetContacts - ambil daftar kontak yang saling follow (mutual)
+/// GetContacts - ambil daftar kontak
 func (s *ChatService) GetContacts(userID int, search string) ([]Contact, error) {
     query := `
-        SELECT DISTINCT 
-            u.id, u.username, u.fullname, u.email, u.role, u.avatar,
-            CASE WHEN f1.id IS NOT NULL THEN 1 ELSE 0 END as is_following,
-            CASE WHEN f2.id IS NOT NULL THEN 1 ELSE 0 END as is_followed_by,
-            c.last_message,
-            CASE 
-                WHEN c.participant1_id = ? THEN c.participant1_unread_count
-                ELSE c.participant2_unread_count
-            END as unread_count
+        SELECT 
+            u.id, 
+            u.username, 
+            u.fullname, 
+            u.email, 
+            u.role, 
+            u.avatar,
+            COALESCE(f1.status = 'accepted', false) as is_following,
+            COALESCE(f2.status = 'accepted', false) as is_followed_by,
+            NULL as last_message,
+            0 as unread_count
         FROM users u
-        LEFT JOIN follows f1 ON f1.follower_id = ? AND f1.following_id = u.id AND f1.status = 'accepted'
-        LEFT JOIN follows f2 ON f2.follower_id = u.id AND f2.following_id = ? AND f2.status = 'accepted'
-        LEFT JOIN conversations c ON (c.participant1_id = ? AND c.participant2_id = u.id) 
-                                  OR (c.participant1_id = u.id AND c.participant2_id = ?)
-        WHERE u.id != ? AND u.is_active = TRUE
+        LEFT JOIN follows f1 ON f1.follower_id = ? AND f1.following_id = u.id
+        LEFT JOIN follows f2 ON f2.follower_id = u.id AND f2.following_id = ?
+        WHERE u.id != ? AND u.is_active = true
     `
-    args := []interface{}{userID, userID, userID, userID, userID, userID}
+    args := []interface{}{userID, userID, userID}
     
     if search != "" {
         query += " AND (u.username LIKE ? OR u.fullname LIKE ? OR u.email LIKE ?)"
@@ -333,7 +333,7 @@ func (s *ChatService) GetContacts(userID int, search string) ([]Contact, error) 
         args = append(args, searchTerm, searchTerm, searchTerm)
     }
     
-    query += " ORDER BY c.last_message_at DESC, u.fullname ASC"
+    query += " ORDER BY u.fullname ASC LIMIT 100"
     
     rows, err := db.DB.Query(query, args...)
     if err != nil {
@@ -344,21 +344,17 @@ func (s *ChatService) GetContacts(userID int, search string) ([]Contact, error) 
     var contacts []Contact
     for rows.Next() {
         var c Contact
-        var lastMsg sql.NullString
-        var unread sql.NullInt64
+        var avatar sql.NullString
         
         err := rows.Scan(
-            &c.ID, &c.Username, &c.Fullname, &c.Email, &c.Role, &c.Avatar,
-            &c.IsFollowing, &c.IsFollowedBy, &lastMsg, &unread,
+            &c.ID, &c.Username, &c.Fullname, &c.Email, &c.Role, &avatar,
+            &c.IsFollowing, &c.IsFollowedBy, &c.LastMessage, &c.UnreadCount,
         )
         if err != nil {
             continue
         }
-        if lastMsg.Valid {
-            c.LastMessage = &lastMsg.String
-        }
-        if unread.Valid {
-            c.UnreadCount = int(unread.Int64)
+        if avatar.Valid {
+            c.Avatar = &avatar.String
         }
         contacts = append(contacts, c)
     }
@@ -409,9 +405,9 @@ func (s *ChatService) RejectFollow(followerID, followingID int) error {
 }
 
 // GetFollowRequests - get pending follow requests
-func (s *ChatService) GetFollowRequests(userID int) ([]Contact, error) {
+func (s *ChatService) GetFollowRequests(userID int) ([]FollowRequestResponse, error) {
     rows, err := db.DB.Query(`
-        SELECT u.id, u.username, u.fullname, u.email, u.role, u.avatar
+        SELECT u.id, u.username, u.fullname, u.avatar
         FROM follows f
         JOIN users u ON f.follower_id = u.id
         WHERE f.following_id = ? AND f.status = 'pending'
@@ -422,16 +418,16 @@ func (s *ChatService) GetFollowRequests(userID int) ([]Contact, error) {
     }
     defer rows.Close()
 
-    var requests []Contact
+    var requests []FollowRequestResponse
     for rows.Next() {
-        var req Contact
+        var req FollowRequestResponse
         var avatar sql.NullString
-        err := rows.Scan(&req.ID, &req.Username, &req.Fullname, &req.Email, &req.Role, &avatar)
+        err := rows.Scan(&req.FollowerID, &req.FollowerUsername, &req.FollowerName, &avatar)
         if err != nil {
             continue
         }
         if avatar.Valid {
-            req.Avatar = &avatar.String
+            req.FollowerAvatar = &avatar.String
         }
         requests = append(requests, req)
     }

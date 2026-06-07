@@ -450,7 +450,7 @@ func (s *ComplaintService) getReportStats(provinceApiID int, dateFilter, statusF
 		defer rows2.Close()
 		for rows2.Next() {
 			var item StatusCount
-			rows2.Scan(&item.Name, &item.Count)
+			rows2.Scan(&item.Name, &item.Value)
 			stats.ByStatus = append(stats.ByStatus, item)
 		}
 	}
@@ -1392,6 +1392,303 @@ func getStatusText(status string) string {
 		return val
 	}
 	return status
+}
+
+// GetDashboardCharts - ambil data chart
+func (s *ComplaintService) GetDashboardCharts() (*ChartData, error) {
+	charts := &ChartData{
+		MonthlyComplaints:    []MonthlyComplaint{},
+		ComplaintsByStatus:   []StatusCount{},
+		ComplaintsByCategory: []CategoryCount{},
+	}
+	
+	// Monthly complaints - QUERY YANG DIPERBAIKI
+	rows, err := db.DB.Query(`
+		SELECT 
+			DATE_FORMAT(created_at, '%b') as month,
+			COUNT(*) as total
+		FROM complaints
+		GROUP BY YEAR(created_at), MONTH(created_at), DATE_FORMAT(created_at, '%b')
+		ORDER BY MIN(created_at) ASC
+	`)
+	if err != nil {
+		return charts, nil // Return empty charts if error
+	}
+	defer rows.Close()
+	
+	for rows.Next() {
+		var month string
+		var total int
+		rows.Scan(&month, &total)
+		charts.MonthlyComplaints = append(charts.MonthlyComplaints, MonthlyComplaint{
+			Month: month,
+			Total: total,
+		})
+	}
+	
+	// Complaints by status
+	statusRows, err := db.DB.Query(`
+		SELECT 
+			CASE status
+				WHEN 'pending_governor' THEN 'Menunggu Gubernur'
+				WHEN 'investigation_assigned' THEN 'Investigasi'
+				WHEN 'investigation_done' THEN 'Investigasi Selesai'
+				WHEN 'governor_processing' THEN 'Diproses Gubernur'
+				WHEN 'completed' THEN 'Selesai'
+				WHEN 'rejected' THEN 'Ditolak'
+				ELSE status
+			END as name,
+			COUNT(*) as value
+		FROM complaints
+		GROUP BY status
+	`)
+	if err == nil {
+		defer statusRows.Close()
+		for statusRows.Next() {
+			var name string
+			var value int
+			statusRows.Scan(&name, &value)
+			charts.ComplaintsByStatus = append(charts.ComplaintsByStatus, StatusCount{
+				Name:  name,
+				Value: value,
+			})
+		}
+	}
+	
+	// Complaints by category
+	catRows, err := db.DB.Query(`
+		SELECT c.name, COUNT(*) as count
+		FROM complaints co
+		JOIN categories c ON co.category_id = c.id
+		GROUP BY co.category_id, c.name
+		ORDER BY count DESC
+		LIMIT 6
+	`)
+	if err == nil {
+		defer catRows.Close()
+		for catRows.Next() {
+			var name string
+			var count int
+			catRows.Scan(&name, &count)
+			charts.ComplaintsByCategory = append(charts.ComplaintsByCategory, CategoryCount{
+				Name:  name,
+				Count: count,
+			})
+		}
+	}
+	
+	return charts, nil
+}
+
+// GetAllUsers - ambil semua user
+func (s *ComplaintService) GetAllUsers(role, search string, page, limit int) ([]UserResponse, int, error) {
+	offset := (page - 1) * limit
+	
+	baseQuery := "FROM users WHERE 1=1"
+	args := []interface{}{}
+	
+	if role != "" && role != "all" {
+		baseQuery += " AND role = ?"
+		args = append(args, role)
+	}
+	
+	if search != "" {
+		baseQuery += " AND (username LIKE ? OR fullname LIKE ? OR email LIKE ?)"
+		searchTerm := "%" + search + "%"
+		args = append(args, searchTerm, searchTerm, searchTerm)
+	}
+	
+	var total int
+	err := db.DB.QueryRow("SELECT COUNT(*) "+baseQuery, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+	
+	dataQuery := "SELECT id, username, fullname, email, role, COALESCE(province_api_id, 0) as province_api_id, is_active, created_at " + baseQuery + " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+	dataArgs := append(args, limit, offset)
+	
+	rows, err := db.DB.Query(dataQuery, dataArgs...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	
+	var users []UserResponse
+	for rows.Next() {
+		var u UserResponse
+		var provinceID int
+		rows.Scan(&u.ID, &u.Username, &u.Fullname, &u.Email, &u.Role, &provinceID, &u.IsActive, &u.CreatedAt)
+		if provinceID > 0 {
+			u.ProvinceApiID = &provinceID
+		}
+		users = append(users, u)
+	}
+	
+	return users, total, nil
+}
+
+// GetRecentUsers - ambil 5 user terbaru
+func (s *ComplaintService) GetRecentUsers() ([]RecentUser, error) {
+	rows, err := db.DB.Query(`
+		SELECT id, username, fullname, role, created_at
+		FROM users 
+		ORDER BY created_at DESC 
+		LIMIT 5
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	
+	var users []RecentUser
+	for rows.Next() {
+		var u RecentUser
+		rows.Scan(&u.ID, &u.Username, &u.Fullname, &u.Role, &u.CreatedAt)
+		users = append(users, u)
+	}
+	
+	return users, nil
+}
+
+// UpdateUser - update user
+func (s *ComplaintService) UpdateUser(userID int, role string, provinceApiID *int) error {
+	_, err := db.DB.Exec(`
+		UPDATE users 
+		SET role = ?, province_api_id = ?, updated_at = NOW()
+		WHERE id = ?
+	`, role, provinceApiID, userID)
+	return err
+}
+
+// ToggleUserActive - toggle user active status
+func (s *ComplaintService) ToggleUserActive(userID int, isActive bool) error {
+	_, err := db.DB.Exec(`
+		UPDATE users 
+		SET is_active = ?, updated_at = NOW()
+		WHERE id = ?
+	`, isActive, userID)
+	return err
+}
+
+// GetAllComplaintsForAdmin - ambil semua complaint untuk admin
+func (s *ComplaintService) GetAllComplaintsForAdmin(status, search string, page, limit int) ([]Complaint, int, error) {
+	offset := (page - 1) * limit
+	
+	query := `
+		SELECT id, tracking_code, user_id, description, status, created_at
+		FROM complaints
+		WHERE 1=1
+	`
+	countQuery := "SELECT COUNT(*) FROM complaints WHERE 1=1"
+	args := []interface{}{}
+	
+	if status != "" && status != "all" {
+		query += " AND status = ?"
+		countQuery += " AND status = ?"
+		args = append(args, status)
+	}
+	
+	if search != "" {
+		query += " AND (tracking_code LIKE ? OR description LIKE ?)"
+		countQuery += " AND (tracking_code LIKE ? OR description LIKE ?)"
+		searchTerm := "%" + search + "%"
+		args = append(args, searchTerm, searchTerm)
+	}
+	
+	var total int
+	err := db.DB.QueryRow(countQuery, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+	
+	query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+	args = append(args, limit, offset)
+	
+	rows, err := db.DB.Query(query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	
+	var complaints []Complaint
+	for rows.Next() {
+		var c Complaint
+		rows.Scan(&c.ID, &c.TrackingCode, &c.UserID, &c.Description, &c.Status, &c.CreatedAt)
+		c.StatusText = getStatusText(c.Status)
+		complaints = append(complaints, c)
+	}
+	
+	return complaints, total, nil
+}
+
+// GetRecentComplaints - ambil 5 complaint terbaru
+func (s *ComplaintService) GetRecentComplaints() ([]RecentComplaint, error) {
+	rows, err := db.DB.Query(`
+		SELECT c.id, c.tracking_code, c.description, c.status, c.created_at, 
+			COALESCE(u.username, '') as user_name, COALESCE(u.fullname, '') as user_fullname
+		FROM complaints c
+		JOIN users u ON c.user_id = u.id
+		ORDER BY c.created_at DESC 
+		LIMIT 5
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	
+	var complaints []RecentComplaint
+	for rows.Next() {
+		var rc RecentComplaint
+		rows.Scan(&rc.ID, &rc.TrackingCode, &rc.Description, &rc.Status, &rc.CreatedAt, &rc.UserName, &rc.UserFullname)
+		rc.StatusText = getStatusText(rc.Status)
+		complaints = append(complaints, rc)
+	}
+	
+	return complaints, nil
+}
+
+// VerifyProcessReport - verifikasi laporan proses
+func (s *ComplaintService) VerifyProcessReport(reportID int, status string, adminNote *string, adminID int) error {
+	newStatus := "process_report_verified"
+	if status == "rejected" {
+		newStatus = "process_report_rejected"
+	}
+	
+	_, err := db.DB.Exec(`
+		UPDATE process_reports 
+		SET status = ?, admin_notes = ?, verified_by = ?, verified_at = NOW()
+		WHERE id = ?
+	`, newStatus, adminNote, adminID, reportID)
+	
+	if err == nil && status == "verified" {
+		var complaintID int
+		db.DB.QueryRow("SELECT complaint_id FROM process_reports WHERE id = ?", reportID).Scan(&complaintID)
+		db.DB.Exec("UPDATE complaints SET status = 'governor_processing' WHERE id = ?", complaintID)
+	}
+	
+	return err
+}
+
+// VerifyCompletionReport - verifikasi laporan akhir
+func (s *ComplaintService) VerifyCompletionReport(reportID int, status string, adminNote *string, adminID int) error {
+	newStatus := "completion_report_verified"
+	if status == "rejected" {
+		newStatus = "completion_report_rejected"
+	}
+	
+	_, err := db.DB.Exec(`
+		UPDATE completion_reports 
+		SET status = ?, admin_notes = ?, verified_by = ?, verified_at = NOW()
+		WHERE id = ?
+	`, newStatus, adminNote, adminID, reportID)
+	
+	if err == nil && status == "verified" {
+		var complaintID int
+		db.DB.QueryRow("SELECT complaint_id FROM completion_reports WHERE id = ?", reportID).Scan(&complaintID)
+		db.DB.Exec("UPDATE complaints SET status = 'completed' WHERE id = ?", complaintID)
+	}
+	
+	return err
 }
 
 func intPtr(i int) *int {

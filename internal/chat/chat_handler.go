@@ -173,7 +173,8 @@ func (h *ChatHandler) GetContacts(c *gin.Context) {
     userID, _ := c.Get("user_id")
     search := c.Query("search")
 
-    contacts, err := h.service.GetContacts(userID.(int), search) // Hanya 2 nilai balik
+    // Hapus komentar yang bikin bingung
+    contacts, err := h.service.GetContacts(userID.(int), search)
     if err != nil {
         c.JSON(http.StatusInternalServerError, dto.Response{
             Success: false,
